@@ -10,7 +10,7 @@ from django.contrib import messages
 from django.views.decorators.http import require_POST
 from django.utils import timezone
 
-from .models import OperarioTaller, NotaAuditoria
+from .models import OperarioTaller, NotaAuditoria, ParametroTaller
 from .services.analytics_service import (
     auditar_jornada_produccion,
     auditar_periodo_produccion,
@@ -720,11 +720,33 @@ def aura_botanica_view(request):
 
 def parametros_taller_view(request):
     """
-    Vista eliminada: los parámetros de auditoría son fijos y estáticos en el backend
-    (jornada obligatoria de 8,5 horas / 510 min, inicio a las 07:00 y fin a las 16:00).
-    Redirige a la configuración de nómina de operarios para evitar configuraciones manuales.
+    Configuración de Parámetros de Planta (Jornada laboral teórica, tolerancias y distribución horaria Lunes a Viernes).
     """
-    return redirect('control_produccion:operarios_config')
+    param = ParametroTaller.get_solo()
+
+    if request.method == 'POST':
+        try:
+            jornada = float(request.POST.get('jornada_teorica_horas', 8.5))
+            tolerancia = int(request.POST.get('tolerancia_bache_minutos', 15))
+            h_ini = request.POST.get('hora_inicio_taller', '07:00').strip()
+            h_fin = request.POST.get('hora_fin_taller', '16:00').strip()
+
+            param.jornada_teorica_horas = jornada
+            param.tolerancia_bache_minutos = tolerancia
+            param.hora_inicio_taller = h_ini
+            param.hora_fin_taller = h_fin
+            param.save()
+
+            _safe_message(request, 'success', "Parámetros generales de planta actualizados correctamente.")
+            return redirect('control_produccion:parametros_taller')
+        except Exception as e:
+            _safe_message(request, 'error', f"Error al guardar los parámetros de planta: {e}")
+
+    context = {
+        'seccion_activa': 'configuracion',
+        'param': param,
+    }
+    return render(request, 'control_produccion/parametros_taller.html', context)
 
 
 def exportar_excel_view(request):

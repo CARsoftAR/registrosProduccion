@@ -60,6 +60,12 @@
                     <i class="bi bi-people-fill"></i>
                     <span>Operarios de Taller</span>
                 </a>
+
+                <a href="{% url 'control_produccion:parametros_taller' %}" 
+                   class="nav-item-link {% if seccion_activa == 'configuracion' and request.resolver_match.url_name == 'parametros_taller' %}active{% endif %}">
+                    <i class="bi bi-sliders2"></i>
+                    <span>Configuración</span>
+                </a>
             </nav>
 
             <div class="sidebar-footer">

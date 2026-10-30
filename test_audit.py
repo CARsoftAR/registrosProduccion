@@ -288,24 +288,39 @@ def test_full_flow():
     assert 'accordion-block-omision-total' in html_cp
     print("   [OK] Bloque visual de omisión total renderizado para operarios sin actividad!")
 
-    # 7. Validación de Eliminación de Solapa de Parámetros y Configuración Estática Backend
-    print("\n7. Validando eliminación de solapa de Parámetros y configuración estática en backend...")
-    req_op_cfg = rf.get('/configuracion/operarios/')
+    # 7. Validación de Restauración de Menú y Módulo de Configuración de Planta
+    print("\n7. Validando restauración de menú y módulo de Configuración de Planta...")
+    req_op_cfg = rf.get('/operarios/')
     resp_op_cfg = operarios_config_view(req_op_cfg)
     assert resp_op_cfg.status_code == 200, f"Error en operarios_config_view: {resp_op_cfg.status_code}"
     html_op_cfg = resp_op_cfg.content.decode('utf-8')
     assert "Dashboard Ejecutivo" in html_op_cfg
     assert "Control de Producción" in html_op_cfg
     assert "Operarios de Taller" in html_op_cfg
-    assert "Jornada y Parámetros" not in html_op_cfg, "La solapa 'Jornada y Parámetros' debe haber sido eliminada del menú lateral!"
-    print("   [OK] Solapa 'Jornada y Parámetros' eliminada con éxito del menú lateral (solo queda Operarios de Taller)!")
+    assert "Configuración" in html_op_cfg, "La opción 'Configuración' debe estar presente en el menú lateral!"
+    print("   [OK] Opción 'Configuración' restaurada con éxito en el menú lateral bajo 'Configuración de Planta'!")
 
-    # Verificar que el acceso a la antigua ruta de parámetros redirija de forma segura sin pantallas manuales
+    # Verificar que el acceso a /parametros/ renderice la pantalla de Configuración de Planta
     req_param = rf.get('/parametros/')
     resp_param = parametros_taller_view(req_param)
-    assert resp_param.status_code == 302, f"Se esperaba redirección 302, pero se obtuvo {resp_param.status_code}"
-    assert resp_param.url == '/operarios/', f"Redirección esperada a /operarios/, obtenida: {resp_param.url}"
-    print("   [OK] Acceso a /parametros/ redirige de forma segura (302) a /operarios/ sin pantallas manuales!")
+    assert resp_param.status_code == 200, f"Se esperaba status 200 en /parametros/, pero se obtuvo {resp_param.status_code}"
+    html_param = resp_param.content.decode('utf-8')
+    assert "Configuración de Planta" in html_param
+    assert "jornada_teorica_horas" in html_param
+    assert "hora_inicio_taller" in html_param
+    assert "hora_fin_taller" in html_param
+    print("   [OK] Módulo de Configuración de Planta renderizado y accesible con total normalidad!")
+
+    # Verificar guardado de parámetros
+    req_save_param = rf.post('/parametros/', {
+        'jornada_teorica_horas': '8.5',
+        'tolerancia_bache_minutos': '15',
+        'hora_inicio_taller': '07:00',
+        'hora_fin_taller': '16:00',
+    })
+    resp_save_param = parametros_taller_view(req_save_param)
+    assert resp_save_param.status_code == 302, f"Se esperaba redirección al guardar parámetros, obtenido: {resp_save_param.status_code}"
+    print("   [OK] Guardado de parámetros generales verificado con éxito!")
 
     # Verificar constantes fijas de planta en el backend (8,5 hs = 510 min, 07:00 a 16:00)
     from control_produccion.constants import (

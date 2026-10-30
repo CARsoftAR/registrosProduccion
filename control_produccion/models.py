@@ -46,16 +46,6 @@ class ParametroTaller(models.Model):
                 'hora_fin_taller': '16:00',
             }
         )
-        # Garantizar valores estáticos fijos por defecto (8,5 hs, 07:00 a 16:00, 15 min bache)
-        if (obj.jornada_teorica_horas != 8.5 or 
-            obj.hora_inicio_taller != '07:00' or 
-            obj.hora_fin_taller != '16:00' or 
-            obj.tolerancia_bache_minutos != 15):
-            obj.jornada_teorica_horas = 8.5
-            obj.tolerancia_bache_minutos = 15
-            obj.hora_inicio_taller = '07:00'
-            obj.hora_fin_taller = '16:00'
-            obj.save(update_fields=['jornada_teorica_horas', 'tolerancia_bache_minutos', 'hora_inicio_taller', 'hora_fin_taller'])
         return obj
 
 
