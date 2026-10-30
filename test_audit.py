@@ -355,11 +355,10 @@ def test_full_flow():
     assert 'Esquema Rotativo Semanal' in html_nuevo
     assert 'Copiar Lunes a toda la semana' in html_nuevo
     assert 'Ver Listado Maestro' in html_nuevo
-    assert 'Liquidación Mensual' in html_nuevo
-    assert 'DTO. INFORMATICA' in html_nuevo
-    assert 'PRODUCCIÓN' in html_nuevo
+    assert 'NÚMERO DE LEGAJO' in html_nuevo
+    assert 'NOMBRE COMPLETO' in html_nuevo
     assert 'modalListadoMaestro' in html_nuevo
-    print("   [OK] Formulario de operario (Estilo Ausentismo: 2 columnas, Sectores en 2 col, switches verdes, Copiar Lunes y Modal Listado Maestro) verificado correctamente!")
+    print("   [OK] Formulario de operario (Limpio a 2 columnas: Legajo, Nombre, switches verdes, Copiar Lunes y Modal Listado Maestro) verificado correctamente!")
 
     # Verificar que solo se listen operarios activos por defecto
     total_db_activos = OperarioTaller.objects.filter(activo=True).count()
