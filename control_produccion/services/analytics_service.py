@@ -23,39 +23,54 @@ from control_produccion.constants import (
 )
 
 
+OPERARIOS_14_DEFAULT = [
+    {"id_concepto": "97", "nombre": "BARTET NICOLAS EZEQUIEL", "categoria": "PRODUCCIÓN", "es_mensual": False},
+    {"id_concepto": "57", "nombre": "CACERES FABIAN", "categoria": "PRODUCCIÓN", "es_mensual": False},
+    {"id_concepto": "65", "nombre": "COSTA JAVIER ALEJANDRO", "categoria": "PRODUCCIÓN", "es_mensual": False},
+    {"id_concepto": "39", "nombre": "CREPALDI, NAHUEL C. ALB.", "categoria": "PRODUCCIÓN", "es_mensual": False},
+    {"id_concepto": "92", "nombre": "DARRIGAN GASTON", "categoria": "PRODUCCIÓN", "es_mensual": False},
+    {"id_concepto": "86", "nombre": "FERNANDEZ EZEQUIEL", "categoria": "PRODUCCIÓN", "es_mensual": False},
+    {"id_concepto": "17", "nombre": "FERREYRA DAMIAN", "categoria": "PRODUCCIÓN", "es_mensual": False},
+    {"id_concepto": "99", "nombre": "MASERA ANIBAL EZEQUIEL", "categoria": "PRODUCCIÓN", "es_mensual": False},
+    {"id_concepto": "100", "nombre": "MASERA NICOLAS", "categoria": "PRODUCCIÓN", "es_mensual": False},
+    {"id_concepto": "13", "nombre": "MOLINARI LUCAS", "categoria": "PRODUCCIÓN", "es_mensual": False},
+    {"id_concepto": "48", "nombre": "ROJAS, MARIO ALBERTO", "categoria": "PRODUCCIÓN", "es_mensual": False},
+    {"id_concepto": "995", "nombre": "SCARINCI NICOLAS", "categoria": "PRODUCCIÓN", "es_mensual": False},
+    {"id_concepto": "83", "nombre": "SOSA ROBERTO CARLOS", "categoria": "PRODUCCIÓN", "es_mensual": False},
+    {"id_concepto": "66", "nombre": "TABORDA DANIEL GERMAN", "categoria": "PRODUCCIÓN", "es_mensual": False},
+]
+
+
 def sincronizar_operarios_taller():
     """
-    Sincroniza la nómina local de operarios auditables con los conceptos activos del ERP.
-    Si ya existen operarios locales, preserva su estado 'activo'.
-    Si está vacía, inicializa con los operarios humanos activos del taller.
+    Carga y sincroniza la nómina exclusivamente contra la Base de Datos Local
+    con los 14 operarios activos confirmados de planta. Sin llamadas de red externas.
     """
-    conceptos_erp = get_all_taller_concepts_from_erp()
-    if not conceptos_erp:
-        return OperarioTaller.objects.filter(activo=True)
+    esquema_base = {
+        'lunes': {'activo': True, 'inicio': '07:00', 'fin': '16:00'},
+        'martes': {'activo': True, 'inicio': '07:00', 'fin': '16:00'},
+        'miercoles': {'activo': True, 'inicio': '07:00', 'fin': '16:00'},
+        'jueves': {'activo': True, 'inicio': '07:00', 'fin': '16:00'},
+        'viernes': {'activo': True, 'inicio': '07:00', 'fin': '16:00'},
+        'sabado': {'activo': False, 'inicio': '07:00', 'fin': '12:00'},
+        'domingo': {'activo': False, 'inicio': '07:00', 'fin': '12:00'},
+    }
+    for op_data in OPERARIOS_14_DEFAULT:
+        obj, created = OperarioTaller.objects.get_or_create(
+            id_concepto=op_data['id_concepto'],
+            defaults={
+                'nombre': op_data['nombre'],
+                'categoria': op_data['categoria'],
+                'es_mensual': op_data['es_mensual'],
+                'activo': True,
+                'horario_rotativo': esquema_base,
+            }
+        )
+        if not created and not obj.activo:
+            obj.activo = True
+            obj.save(update_fields=['activo'])
 
-    # Identificar operarios que tuvieron actividad reciente en el ERP (últimos meses)
-    # Lista de los 14 operarios activos confirmados de taller:
-    habituales = {'13', '17', '39', '48', '57', '65', '66', '83', '86', '92', '97', '99', '100', '995'}
-
-    for c in conceptos_erp:
-        cid = c['id_concepto']
-        nombre = c['nombre']
-        obj = OperarioTaller.objects.filter(id_concepto=cid).first()
-        if not obj:
-            # Nuevo operario
-            es_habitual = cid in habituales
-            OperarioTaller.objects.create(
-                id_concepto=cid,
-                nombre=nombre,
-                activo=es_habitual,
-                puesto_area="Taller / Producción",
-            )
-        else:
-            if obj.nombre != nombre and nombre:
-                obj.nombre = nombre
-                obj.save(update_fields=['nombre'])
-
-    return OperarioTaller.objects.filter(activo=True)
+    return OperarioTaller.objects.filter(activo=True).order_by('nombre')
 
 
 def parse_fecha(fecha):
