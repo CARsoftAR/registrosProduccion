@@ -1,0 +1,465 @@
+{% extends 'base.html' %}
+{% load static %}
+
+{% block title %}{% if es_edicion %}Modificar Operario: {{ operario.nombre }}{% else %}Gestión de Operarios{% endif %} | ABBAMAT{% endblock %}
+
+{% block extra_head %}
+<link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.1/css/all.min.css">
+<style>
+/* =====================================================================
+   GESTIÓN DE OPERARIOS — Utilidades equivalentes a Tailwind (scoped)
+   El proyecto no carga Tailwind: estas clases replican exactamente
+   grid-cols-1 / lg:grid-cols-2 / gap-8 / rounded-[24px] / p-6 / lg:p-8 ...
+   ===================================================================== */
+.op-scope, .op-scope *, .op-modal, .op-modal * { box-sizing: border-box; }
+.op-scope { width: 100%; max-width: 1280px; margin: 0 auto; padding-bottom: 48px; font-family: 'Inter', system-ui, sans-serif; }
+
+/* --- Grid principal a dos columnas reales --- */
+.op-scope .grid { display: grid; }
+.op-scope .grid-cols-1 { grid-template-columns: minmax(0, 1fr); }
+.op-scope .gap-8 { gap: 2rem; }
+.op-scope .items-start { align-items: start; }
+.op-scope .w-full { width: 100%; }
+@media (min-width: 1024px) {
+    .op-scope .lg\:grid-cols-2 { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+    .op-scope .lg\:p-8 { padding: 2rem; }
+}
+
+/* --- Tarjetas --- */
+.op-scope .bg-white { background: #ffffff; }
+.op-scope .border { border-width: 1px; border-style: solid; }
+.op-scope .border-slate-200 { border-color: #e2e8f0; }
+.op-scope .rounded-\[24px\] { border-radius: 24px; }
+.op-scope .p-6 { padding: 1.5rem; }
+.op-scope .shadow-xs { box-shadow: 0 1px 2px rgba(15, 23, 42, 0.05); }
+.op-scope .space-y-6 > * + * { margin-top: 1.5rem; }
+@media (min-width: 1024px) { .op-scope .lg\:p-8 { padding: 2rem; } }
+
+/* --- Cabecera --- */
+.op-breadcrumb { font-size: 11px; font-weight: 700; letter-spacing: .08em; text-transform: uppercase; color: #64748b; margin: 0 0 8px; }
+.op-header { display: flex; justify-content: space-between; align-items: center; gap: 16px; flex-wrap: wrap; margin-bottom: 28px; }
+.op-title { font-size: 30px; font-weight: 700; color: #0f172a; margin: 0; letter-spacing: -.02em; }
+.op-subtitle { font-size: 14px; color: #64748b; margin: 4px 0 0; }
+.op-btn-dark { display: inline-flex; align-items: center; gap: 10px; background: #0f172a; color: #fff; border: 0; border-radius: 16px; padding: 12px 24px; font-size: 14px; font-weight: 700; cursor: pointer; transition: background .15s, transform .15s; }
+.op-btn-dark:hover { background: #1e293b; transform: translateY(-1px); }
+
+.op-section-title { display: flex; align-items: center; gap: 12px; margin-bottom: 24px; }
+.op-section-title .bar { width: 4px; height: 24px; border-radius: 9999px; background: #2563eb; }
+.op-section-title h3 { font-size: 20px; font-weight: 700; color: #0f172a; margin: 0; }
+.op-mode { font-size: 10px; font-weight: 700; letter-spacing: .06em; text-transform: uppercase; padding: 4px 10px; border-radius: 6px; }
+.op-mode.alta { background: #ecfdf5; color: #047857; border: 1px solid #a7f3d0; }
+.op-mode.edit { background: #fffbeb; color: #b45309; border: 1px solid #fde68a; }
+
+/* --- Contenido de tarjetas --- */
+.op-card-head { display: flex; align-items: center; gap: 16px; }
+.op-card-icon { width: 48px; height: 48px; border-radius: 16px; background: #eff6ff; color: #2563eb; display: flex; align-items: center; justify-content: center; font-size: 22px; flex-shrink: 0; }
+.op-card-head h4 { font-size: 18px; font-weight: 700; color: #0f172a; margin: 0; }
+.op-card-head p { font-size: 12px; color: #64748b; margin: 2px 0 0; }
+
+.op-label { display: block; font-size: 12px; font-weight: 700; color: #64748b; letter-spacing: .03em; text-transform: uppercase; margin-bottom: 8px; }
+.op-input { width: 100%; background: #f8fafc; border: 1px solid #e2e8f0; border-radius: 12px; padding: 12px 16px; font-size: 14px; font-weight: 500; color: #0f172a; outline: none; transition: all .15s; }
+.op-input:focus { background: #fff; border-color: #3b82f6; box-shadow: 0 0 0 3px rgba(59,130,246,.15); }
+.op-input[readonly] { background: #f1f5f9; color: #475569; font-weight: 700; cursor: not-allowed; }
+
+.op-check { display: flex; align-items: center; gap: 10px; }
+.op-check input { width: 18px; height: 18px; accent-color: #2563eb; cursor: pointer; margin: 0; }
+.op-check label { font-size: 14px; font-weight: 600; color: #334155; cursor: pointer; user-select: none; }
+.op-check label span { color: #64748b; font-weight: 500; }
+
+/* Sectores: cuadrícula 2 columnas */
+.op-sectores { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 12px; }
+.op-sector { display: flex; align-items: center; justify-content: space-between; gap: 8px; padding: 10px 14px; border-radius: 12px; background: #f8fafc; border: 1px solid #e2e8f0; cursor: pointer; user-select: none; transition: all .15s; min-width: 0; }
+.op-sector:hover { background: #f1f5f9; border-color: #cbd5e1; }
+.op-sector .num { width: 32px; height: 32px; border-radius: 50%; background: #dbeafe; color: #2563eb; font-size: 11px; font-weight: 700; display: flex; align-items: center; justify-content: center; flex-shrink: 0; }
+.op-sector .txt { font-size: 11px; font-weight: 700; color: #334155; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.op-sector .chk { color: #1d4ed8; display: none; flex-shrink: 0; }
+.op-sector.selected { background: #eff6ff; border-color: #3b82f6; box-shadow: 0 0 0 1px #3b82f6; }
+.op-sector.selected .num { background: #2563eb; color: #fff; }
+.op-sector.selected .txt { color: #1e3a8a; }
+.op-sector.selected .chk { display: block; }
+
+/* Esquema semanal: filas horizontales compactas */
+.op-week-head { display: flex; justify-content: space-between; align-items: flex-start; gap: 12px; }
+.op-link-copy { background: transparent; border: 0; color: #2563eb; font-size: 12px; font-weight: 700; display: inline-flex; align-items: center; gap: 6px; cursor: pointer; padding: 4px 6px; border-radius: 8px; white-space: nowrap; }
+.op-link-copy:hover { text-decoration: underline; }
+
+.op-days { display: flex; flex-direction: column; }
+.op-day { display: flex; flex-wrap: nowrap; align-items: center; gap: 12px; padding: 10px 0; border-bottom: 1px solid #f1f5f9; min-height: 52px; }
+.op-day:last-child { border-bottom: 0; }
+.op-day-name { width: 96px; flex-shrink: 0; }
+.op-day-name b { display: block; font-size: 14px; font-weight: 700; color: #1e293b; line-height: 1.2; }
+.op-day-name small { font-size: 10px; color: #94a3b8; font-weight: 500; }
+.op-day-hours { margin-left: auto; display: flex; align-items: center; gap: 8px; flex-shrink: 0; }
+.op-day-hours span { font-size: 12px; font-weight: 700; color: #94a3b8; }
+.op-time { width: 76px; height: 34px; text-align: center; font-size: 13px; font-weight: 700; color: #1e293b; background: #fff; border: 1px solid #cbd5e1; border-radius: 10px; outline: none; padding: 0 6px; }
+.op-time:focus { border-color: #2563eb; box-shadow: 0 0 0 2px rgba(37,99,235,.15); }
+.op-day-off { margin-left: auto; font-size: 13px; font-weight: 600; font-style: italic; color: #94a3b8; padding-right: 8px; }
+.op-day.inactive .op-day-hours { display: none; }
+.op-day:not(.inactive) .op-day-off { display: none; }
+
+/* Switch verde/gris */
+.op-switch { position: relative; display: inline-block; width: 40px; height: 22px; flex-shrink: 0; margin: 0; }
+.op-switch input { opacity: 0; width: 0; height: 0; position: absolute; }
+.op-switch .track { position: absolute; inset: 0; background: #cbd5e1; border-radius: 9999px; cursor: pointer; transition: background .2s; }
+.op-switch .track::before { content: ""; position: absolute; width: 16px; height: 16px; left: 3px; top: 3px; background: #fff; border-radius: 50%; box-shadow: 0 1px 2px rgba(0,0,0,.2); transition: transform .2s; }
+.op-switch input:checked + .track { background: #10b981; }
+.op-switch input:checked + .track::before { transform: translateX(18px); }
+
+.op-actions { display: flex; justify-content: flex-end; align-items: center; gap: 16px; padding-top: 20px; border-top: 1px solid #f1f5f9; }
+.op-btn-cancel { font-size: 14px; font-weight: 700; color: #475569; text-decoration: none; padding: 10px 20px; border-radius: 12px; }
+.op-btn-cancel:hover { background: #f1f5f9; color: #0f172a; }
+.op-btn-primary { display: inline-flex; align-items: center; gap: 8px; background: #2563eb; color: #fff; border: 0; border-radius: 12px; padding: 11px 24px; font-size: 14px; font-weight: 700; cursor: pointer; box-shadow: 0 4px 14px rgba(37,99,235,.25); text-decoration: none; }
+.op-btn-primary:hover { background: #1d4ed8; color: #fff; }
+
+/* =====================================================================
+   MODAL FLOTANTE INDEPENDIENTE
+   fixed inset-0 bg-black/50 flex items-center justify-center
+   ===================================================================== */
+.op-modal.fixed { position: fixed; }
+.op-modal.inset-0 { inset: 0; }
+.op-modal.bg-black\/50 { background: rgba(0, 0, 0, 0.5); }
+.op-modal.flex { display: flex; }
+.op-modal.items-center { align-items: center; }
+.op-modal.justify-center { justify-content: center; }
+.op-modal { z-index: 10000; padding: 24px; backdrop-filter: blur(4px); -webkit-backdrop-filter: blur(4px); font-family: 'Inter', system-ui, sans-serif; }
+.op-modal.hidden { display: none !important; }
+
+.op-modal-dialog { width: 100%; max-width: 1100px; max-height: 85vh; background: #fff; border-radius: 24px; border: 1px solid #e2e8f0; box-shadow: 0 25px 50px -12px rgba(0,0,0,.25); display: flex; flex-direction: column; overflow: hidden; animation: opIn .2s cubic-bezier(.16,1,.3,1); }
+@keyframes opIn { from { opacity: 0; transform: scale(.97); } to { opacity: 1; transform: scale(1); } }
+
+.op-modal-head { display: flex; align-items: center; justify-content: space-between; gap: 16px; flex-wrap: wrap; padding: 24px 32px; border-bottom: 1px solid #f1f5f9; }
+.op-modal-head .left { display: flex; align-items: center; gap: 16px; }
+.op-modal-icon { width: 52px; height: 52px; border-radius: 16px; background: #eff6ff; border: 1px solid #dbeafe; color: #2563eb; display: flex; align-items: center; justify-content: center; font-size: 22px; flex-shrink: 0; }
+.op-modal-head h2 { font-size: 22px; font-weight: 700; color: #1e293b; margin: 0; }
+.op-modal-head p { font-size: 13.5px; color: #64748b; margin: 3px 0 0; }
+.op-badge { display: inline-flex; align-items: center; gap: 6px; background: #eff6ff; color: #1d4ed8; font-size: 13px; font-weight: 600; padding: 3px 12px; border-radius: 9999px; border: 1px solid #bfdbfe; }
+.op-badge i { width: 8px; height: 8px; border-radius: 50%; background: #2563eb; display: inline-block; }
+.op-toolbar { display: flex; align-items: center; gap: 8px; }
+.op-search { position: relative; width: 280px; }
+.op-search i { position: absolute; left: 14px; top: 50%; transform: translateY(-50%); color: #94a3b8; font-size: 13px; }
+.op-search input { width: 100%; padding: 9px 14px 9px 36px; font-size: 13.5px; border-radius: 12px; border: 1px solid #e2e8f0; background: #f8fafc; outline: none; color: #0f172a; }
+.op-search input:focus { background: #fff; border-color: #3b82f6; box-shadow: 0 0 0 3px rgba(59,130,246,.15); }
+.op-icon-btn { width: 38px; height: 38px; border-radius: 12px; border: 0; background: transparent; color: #64748b; display: inline-flex; align-items: center; justify-content: center; cursor: pointer; text-decoration: none; transition: all .15s; }
+.op-icon-btn:hover { background: #f1f5f9; color: #0f172a; }
+
+.op-modal-body { overflow: auto; flex: 1; }
+.op-table { width: 100%; border-collapse: collapse; text-align: left; }
+.op-table thead th { position: sticky; top: 0; background: #f8fafc; z-index: 1; padding: 14px 32px; font-size: 12px; font-weight: 600; letter-spacing: .05em; text-transform: uppercase; color: #94a3b8; border-bottom: 1px solid #f1f5f9; }
+.op-table tbody td { padding: 14px 32px; border-bottom: 1px solid #f1f5f9; white-space: nowrap; font-size: 14.5px; }
+.op-table tbody tr:hover { background: #f8fafc; }
+.op-legajo { font-family: ui-monospace, monospace; font-weight: 700; color: #1e293b; background: #f1f5f9; border: 1px solid #e2e8f0; padding: 5px 12px; border-radius: 8px; font-size: 13.5px; }
+.op-person { display: flex; align-items: center; gap: 14px; }
+.op-avatar { width: 40px; height: 40px; border-radius: 50%; background: #dbeafe; color: #1d4ed8; font-weight: 700; font-size: 13px; display: flex; align-items: center; justify-content: center; flex-shrink: 0; border: 2px solid #fff; box-shadow: 0 1px 2px rgba(0,0,0,.06); }
+.op-person b { display: block; font-weight: 600; color: #1e293b; }
+.op-person small { font-size: 12px; color: #94a3b8; }
+.op-pill { display: inline-flex; align-items: center; gap: 8px; border-radius: 9999px; padding: 5px 14px; background: #eff6ff; color: #1d4ed8; font-size: 13px; font-weight: 500; border: 1px solid #bfdbfe; }
+.op-pill i { color: #3b82f6; font-size: 12px; }
+.op-row-actions { display: inline-flex; gap: 6px; }
+.op-row-actions form { display: inline; margin: 0; }
+.op-act-edit:hover { background: #eff6ff; color: #2563eb; }
+.op-act-del:hover { background: #fff1f2; color: #e11d48; }
+
+.op-modal-foot { display: flex; align-items: center; justify-content: space-between; gap: 16px; padding: 18px 32px; background: #f8fafc; border-top: 1px solid #f1f5f9; font-size: 13.5px; color: #64748b; }
+.op-modal-foot strong { color: #334155; }
+.op-btn-white { padding: 10px 22px; background: #fff; color: #334155; font-weight: 600; font-size: 13.5px; border-radius: 12px; border: 1px solid #e2e8f0; cursor: pointer; box-shadow: 0 1px 2px rgba(0,0,0,.05); }
+.op-btn-white:hover { background: #f1f5f9; }
+body.op-modal-open { overflow: hidden; }
+</style>
+{% endblock %}
+
+{% block content %}
+<div class="op-scope">
+
+    <!-- ================= CABECERA ================= -->
+    <p class="op-breadcrumb">OPERARIOS / GESTIÓN NÓMINA</p>
+    <div class="op-header">
+        <div>
+            <h1 class="op-title">Gestión de Operarios</h1>
+            <p class="op-subtitle">Alta de nuevo legajo y editor de esquema horario asignado.</p>
+        </div>
+        <button type="button" class="op-btn-dark" id="btnAbrirModalMaestro">
+            <i class="fa-solid fa-users"></i>
+            <span>Ver Listado Maestro</span>
+        </button>
+    </div>
+
+    <div class="op-section-title">
+        <div class="bar"></div>
+        <h3>{% if es_edicion %}Modificar Operario{% else %}Alta de Nuevo Operario{% endif %}</h3>
+        <span class="op-mode {% if es_edicion %}edit{% else %}alta{% endif %}">{% if es_edicion %}Modo Edición{% else %}Modo Alta{% endif %}</span>
+    </div>
+
+    <!-- ================= FORMULARIO A DOS COLUMNAS ================= -->
+    <form method="POST" action="" id="formOperario">
+        {% csrf_token %}
+        <input type="hidden" name="categoria" id="inputCategoria" value="{{ operario.categoria|default:'PRODUCCIÓN' }}">
+
+        <div class="grid grid-cols-1 lg:grid-cols-2 gap-8 items-start w-full">
+
+            <!-- ===== Columna Izquierda: Datos Personales ===== -->
+            <div class="bg-white border border-slate-200 rounded-[24px] p-6 lg:p-8 shadow-xs space-y-6">
+                <div class="op-card-head">
+                    <div class="op-card-icon"><i class="fa-solid fa-id-badge"></i></div>
+                    <div>
+                        <h4>Datos Personales</h4>
+                        <p>Identificación del legajo</p>
+                    </div>
+                </div>
+
+                <div>
+                    <label class="op-label" for="inputLegajo">NÚMERO DE LEGAJO</label>
+                    <input type="text" class="op-input" name="id_concepto" id="inputLegajo"
+                           value="{% if es_edicion %}{{ operario.id_concepto }}{% endif %}"
+                           placeholder="Ej: 1042" required {% if es_edicion %}readonly{% endif %}>
+                </div>
+
+                <div>
+                    <label class="op-label" for="inputNombre">NOMBRE COMPLETO</label>
+                    <input type="text" class="op-input" name="nombre" id="inputNombre"
+                           value="{% if es_edicion %}{{ operario.nombre }}{% endif %}"
+                           placeholder="Ej: Juan Pérez" required>
+                </div>
+
+                <div>
+                    <span class="op-label">TIPO DE LIQUIDACIÓN</span>
+                    <div class="op-check">
+                        <input type="checkbox" id="es_mensual" name="es_mensual" {% if operario.es_mensual %}checked{% endif %}>
+                        <label for="es_mensual">Liquidación Mensual <span>(Desmarcado = Quincenal)</span></label>
+                    </div>
+                </div>
+
+                <div>
+                    <span class="op-label">SECTOR / CATEGORÍA</span>
+                    <div class="op-sectores">
+                        {% for sec in sectores %}
+                        <div class="op-sector {% if operario.categoria == sec or not operario.categoria and sec == 'PRODUCCIÓN' %}selected{% endif %}" data-sector="{{ sec }}" role="button" tabindex="0">
+                            <div style="display:flex;align-items:center;gap:8px;min-width:0;">
+                                <div class="num">#{{ forloop.counter }}</div>
+                                <span class="txt">{{ sec }}</span>
+                            </div>
+                            <svg class="chk" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><polyline points="20 6 9 17 4 12"></polyline></svg>
+                        </div>
+                        {% endfor %}
+                    </div>
+                </div>
+            </div>
+
+            <!-- ===== Columna Derecha: Esquema Rotativo Semanal ===== -->
+            <div class="bg-white border border-slate-200 rounded-[24px] p-6 lg:p-8 shadow-xs space-y-6">
+                <div class="op-week-head">
+                    <div class="op-card-head">
+                        <div class="op-card-icon"><i class="fa-regular fa-calendar"></i></div>
+                        <div>
+                            <h4>Esquema Rotativo Semanal</h4>
+                            <p>Días y horarios laborales asignados</p>
+                        </div>
+                    </div>
+                    <button type="button" class="op-link-copy" id="btnCopiarLunes">
+                        <i class="fa-regular fa-copy"></i>
+                        <span>Copiar Lunes a toda la semana</span>
+                    </button>
+                </div>
+
+                <div class="op-days">
+                    {% for dia in dias_semana %}
+                    <div class="op-day {% if not dia.activo %}inactive{% endif %}" id="row_{{ dia.key }}">
+                        <label class="op-switch">
+                            <input type="checkbox" name="dia_{{ dia.key }}_activo" id="switch_{{ dia.key }}" class="dia-switch" data-dia="{{ dia.key }}" {% if dia.activo %}checked{% endif %}>
+                            <span class="track"></span>
+                        </label>
+                        <div class="op-day-name">
+                            <b>{{ dia.nombre }}</b>
+                            <small id="sub_{{ dia.key }}">{% if dia.activo %}Día Laboral{% else %}Descanso{% endif %}</small>
+                        </div>
+                        <div class="op-day-hours">
+                            <input type="text" class="op-time" name="dia_{{ dia.key }}_inicio" id="inicio_{{ dia.key }}" value="{{ dia.inicio }}" maxlength="5" placeholder="07:00">
+                            <span>a</span>
+                            <input type="text" class="op-time" name="dia_{{ dia.key }}_fin" id="fin_{{ dia.key }}" value="{{ dia.fin }}" maxlength="5" placeholder="16:00">
+                        </div>
+                        <div class="op-day-off">Descanso</div>
+                    </div>
+                    {% endfor %}
+                </div>
+
+                <div class="op-actions">
+                    <a href="{% url 'control_produccion:operarios_config' %}" class="op-btn-cancel">Cancelar</a>
+                    <button type="submit" class="op-btn-primary">
+                        <i class="fa-solid fa-check"></i>
+                        <span>{% if es_edicion %}Guardar Cambios{% else %}Registrar Operario{% endif %}</span>
+                    </button>
+                </div>
+            </div>
+
+        </div>
+    </form>
+</div>
+
+<!-- =====================================================================
+     LISTADO MAESTRO — MODAL FLOTANTE INDEPENDIENTE (oculto por defecto)
+     ===================================================================== -->
+<div id="modalListadoMaestro" class="op-modal fixed inset-0 bg-black/50 flex items-center justify-center hidden" aria-hidden="true" role="dialog">
+    <div class="op-modal-dialog">
+
+        <header class="op-modal-head">
+            <div class="left">
+                <div class="op-modal-icon"><i class="fa-solid fa-users"></i></div>
+                <div>
+                    <div style="display:flex;align-items:center;gap:12px;flex-wrap:wrap;">
+                        <h2>Listado Maestro de Operarios</h2>
+                        <span class="op-badge"><i></i><span id="modalHeaderCount">{{ operarios|length }} operarios</span></span>
+                    </div>
+                    <p>Consulta, edición y gestión de la nómina cargada.</p>
+                </div>
+            </div>
+            <div class="op-toolbar">
+                <div class="op-search">
+                    <i class="fa-solid fa-magnifying-glass"></i>
+                    <input type="text" id="buscadorModalMaestro" placeholder="Buscar legajo o nombre...">
+                </div>
+                <a href="{{ request.path }}?maestro=1" class="op-icon-btn" title="Actualizar datos"><i class="fa-solid fa-rotate"></i></a>
+                <button type="button" class="op-icon-btn" data-close-modal title="Cerrar ventana"><i class="fa-solid fa-xmark" style="font-size:18px;"></i></button>
+            </div>
+        </header>
+
+        <main class="op-modal-body">
+            <table class="op-table">
+                <thead>
+                    <tr>
+                        <th style="width:130px;">Legajo</th>
+                        <th>Nombre Completo</th>
+                        <th>Horario Base</th>
+                        <th style="width:130px;text-align:right;">Acciones</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    {% for op in operarios %}
+                    <tr class="fila-operario-modal" data-texto="{{ op.id_concepto }} {{ op.nombre|lower }}">
+                        <td><span class="op-legajo">{{ op.id_concepto }}</span></td>
+                        <td>
+                            <div class="op-person">
+                                <div class="op-avatar">{{ op.iniciales }}</div>
+                                <div>
+                                    <b>{{ op.nombre }}</b>
+                                    <small>{{ op.categoria|default:"Operario" }}</small>
+                                </div>
+                            </div>
+                        </td>
+                        <td><span class="op-pill"><i class="fa-regular fa-clock"></i>{{ op.horario_base }}</span></td>
+                        <td style="text-align:right;">
+                            <div class="op-row-actions">
+                                <a href="{% url 'control_produccion:editar_operario' op.id_concepto %}" class="op-icon-btn op-act-edit" title="Editar operario"><i class="fa-regular fa-pen-to-square"></i></a>
+                                <form method="POST" action="{% url 'control_produccion:operarios_config' %}" onsubmit="return confirm('¿Confirmás eliminar al operario {{ op.nombre|escapejs }}?');">
+                                    {% csrf_token %}
+                                    <input type="hidden" name="accion" value="eliminar_operario">
+                                    <input type="hidden" name="id" value="{{ op.id }}">
+                                    <button type="submit" class="op-icon-btn op-act-del" title="Eliminar registro"><i class="fa-regular fa-trash-can"></i></button>
+                                </form>
+                            </div>
+                        </td>
+                    </tr>
+                    {% empty %}
+                    <tr><td colspan="4" style="text-align:center;padding:56px 20px;color:#94a3b8;">No hay operarios registrados en el sistema.</td></tr>
+                    {% endfor %}
+                    <tr id="filaSinResultados" style="display:none;"><td colspan="4" style="text-align:center;padding:56px 20px;color:#94a3b8;">No se encontraron operarios con ese criterio.</td></tr>
+                </tbody>
+            </table>
+        </main>
+
+        <footer class="op-modal-foot">
+            <div style="display:flex;align-items:center;gap:8px;">
+                <i class="fa-regular fa-circle-check" style="color:#10b981;font-size:16px;"></i>
+                <span>Total: <strong id="modalFooterCount">{{ operarios|length }} operarios</strong> en nómina</span>
+            </div>
+            <div style="display:flex;align-items:center;gap:12px;">
+                <button type="button" class="op-btn-white" data-close-modal>Cerrar</button>
+                <a href="{% url 'control_produccion:nuevo_operario' %}" class="op-btn-primary"><i class="fa-solid fa-plus"></i><span>Preparar Nuevo Ingreso</span></a>
+            </div>
+        </footer>
+    </div>
+</div>
+{% endblock %}
+
+{% block extra_js %}
+<script>
+(function () {
+    // ---------- Sectores ----------
+    const inputCat = document.getElementById('inputCategoria');
+    document.querySelectorAll('.op-sector').forEach(function (chip) {
+        const select = function () {
+            document.querySelectorAll('.op-sector').forEach(function (c) { c.classList.remove('selected'); });
+            chip.classList.add('selected');
+            inputCat.value = chip.dataset.sector;
+        };
+        chip.addEventListener('click', select);
+        chip.addEventListener('keydown', function (e) { if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); select(); } });
+    });
+
+    // ---------- Switches por día ----------
+    function syncDia(dia) {
+        const sw = document.getElementById('switch_' + dia);
+        const row = document.getElementById('row_' + dia);
+        const sub = document.getElementById('sub_' + dia);
+        if (!sw || !row) return;
+        row.classList.toggle('inactive', !sw.checked);
+        if (sub) sub.textContent = sw.checked ? 'Día Laboral' : 'Descanso';
+    }
+    document.querySelectorAll('.dia-switch').forEach(function (sw) {
+        sw.addEventListener('change', function () { syncDia(sw.dataset.dia); });
+    });
+
+    // ---------- Copiar Lunes ----------
+    const btnCopiar = document.getElementById('btnCopiarLunes');
+    btnCopiar.addEventListener('click', function () {
+        const sw = document.getElementById('switch_lunes');
+        const ini = document.getElementById('inicio_lunes').value;
+        const fin = document.getElementById('fin_lunes').value;
+        ['martes', 'miercoles', 'jueves', 'viernes'].forEach(function (d) {
+            document.getElementById('switch_' + d).checked = sw.checked;
+            document.getElementById('inicio_' + d).value = ini;
+            document.getElementById('fin_' + d).value = fin;
+            syncDia(d);
+        });
+        const html = btnCopiar.innerHTML;
+        btnCopiar.innerHTML = '<i class="fa-solid fa-check" style="color:#10b981"></i><span style="color:#10b981">¡Copiado!</span>';
+        setTimeout(function () { btnCopiar.innerHTML = html; }, 1400);
+    });
+
+    // ---------- Modal Listado Maestro (independiente del layout) ----------
+    const modal = document.getElementById('modalListadoMaestro');
+    // Se mueve al <body> para que ningún contenedor con transform/blur rompa el position:fixed
+    document.body.appendChild(modal);
+    const buscador = document.getElementById('buscadorModalMaestro');
+
+    function abrir() {
+        modal.classList.remove('hidden');
+        modal.setAttribute('aria-hidden', 'false');
+        document.body.classList.add('op-modal-open');
+        setTimeout(function () { buscador.focus(); }, 50);
+    }
+    function cerrar() {
+        modal.classList.add('hidden');
+        modal.setAttribute('aria-hidden', 'true');
+        document.body.classList.remove('op-modal-open');
+    }
+    document.getElementById('btnAbrirModalMaestro').addEventListener('click', abrir);
+    modal.querySelectorAll('[data-close-modal]').forEach(function (b) { b.addEventListener('click', cerrar); });
+    modal.addEventListener('click', function (e) { if (e.target === modal) cerrar(); });
+    document.addEventListener('keydown', function (e) { if (e.key === 'Escape' && !modal.classList.contains('hidden')) cerrar(); });
+    if (new URLSearchParams(window.location.search).get('maestro') === '1') abrir();
+
+    // ---------- Buscador ----------
+    buscador.addEventListener('input', function () {
+        const q = buscador.value.toLowerCase().trim();
+        let n = 0;
+        document.querySelectorAll('.fila-operario-modal').forEach(function (f) {
+            const ok = !q || (f.dataset.texto || '').indexOf(q) !== -1;
+            f.style.display = ok ? '' : 'none';
+            if (ok) n++;
+        });
+        document.getElementById('filaSinResultados').style.display = (n === 0 && q) ? '' : 'none';
+        document.getElementById('modalHeaderCount').textContent = n + ' operarios';
+        document.getElementById('modalFooterCount').textContent = n + ' operarios';
+    });
+})();
+</script>
+{% endblock %}

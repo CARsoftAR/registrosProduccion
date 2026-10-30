@@ -1,0 +1,684 @@
+{% extends 'base.html' %}
+{% load static %}
+
+{% block title %}Control y Auditoría de Producción | {{ resumen.fecha_formateada }}{% endblock %}
+
+{% block content %}
+<div class="control-header" style="margin-bottom: 20px; display: flex; justify-content: space-between; align-items: flex-start; flex-wrap: wrap; gap: 16px;">
+    <div>
+        <div style="display: flex; align-items: center; gap: 12px; margin-bottom: 6px;">
+            <h1 style="font-size: 26px; font-weight: 700; color: var(--text-primary);">Control y Auditoría de Producción</h1>
+            <span class="badge badge-outline" style="font-size: 13px; padding: 4px 12px;">
+                <i class="bi bi-clock"></i> 
+                {% if resumen.es_mismo_dia %}
+                    Base: {{ resumen.jornada_teorica_hs }} hs (510 min)
+                {% else %}
+                    Base: {{ resumen.horas_teoricas_operario }} hs ({{ resumen.dias_habiles }} días hábiles)
+                {% endif %}
+            </span>
+            {% if es_hoy %}
+                <span class="badge badge-success">
+                    <i class="bi bi-broadcast"></i> En Curso (Hoy)
+                </span>
+            {% elif not resumen.es_mismo_dia %}
+                <span class="badge badge-info">
+                    <i class="bi bi-calendar3-range"></i> Periodo Consolidado
+                </span>
+            {% endif %}
+        </div>
+        <p style="color: var(--text-secondary); font-size: 14px;">
+            Cruce analítico de la jornada laboral teórica frente a los registros reales extraídos en directo desde <strong>EqualRP</strong>.
+        </p>
+    </div>
+
+    <div style="display: flex; align-items: center; gap: 10px;">
+        <a href="{% url 'control_produccion:exportar_excel' %}?fecha_desde={{ fecha_desde_str }}&fecha_hasta={{ fecha_hasta_str }}{% if operario_filtro %}&operario={{ operario_filtro }}{% endif %}" class="btn btn-success">
+            <i class="bi bi-file-earmark-excel"></i>
+            <span>Exportar Informe (.xlsx)</span>
+        </a>
+    </div>
+</div>
+
+<!-- Banner Informativo del Intervalo Seleccionado -->
+<div class="period-status-banner" style="background: rgba(255, 255, 255, 0.85); backdrop-filter: blur(12px); -webkit-backdrop-filter: blur(12px); border: 1px solid var(--border-color); border-radius: var(--radius-md); padding: 14px 20px; margin-bottom: 24px; display: flex; align-items: center; justify-content: space-between; flex-wrap: wrap; gap: 16px; box-shadow: 0 4px 15px rgba(0,0,0,0.02);">
+    <div style="display: flex; align-items: center; gap: 14px;">
+        <div style="width: 42px; height: 42px; border-radius: var(--radius-sm); background: rgba(37, 99, 235, 0.1); color: #2563eb; display: flex; align-items: center; justify-content: center; font-size: 20px;">
+            <i class="bi bi-calendar3-range"></i>
+        </div>
+        <div>
+            <div style="font-size: 15px; font-weight: 700; color: var(--text-primary);">
+                Intervalo Auditado: <span style="color: #2563eb;">{{ resumen.fecha_formateada }}</span>
+            </div>
+            <div style="font-size: 12.5px; color: var(--text-secondary); margin-top: 2px;">
+                {% if resumen.es_mismo_dia %}
+                    Jornada diaria individual &bull; Base teórica: <strong>{{ resumen.jornada_teorica_hs }} hs</strong> por operario (1 día hábil)
+                {% else %}
+                    Acumulado de <strong>{{ resumen.dias_habiles }} días hábiles</strong> ({{ resumen.dias_totales }} días calendario) &bull; Meta teórica acumulada: <strong>{{ resumen.horas_teoricas_operario }} hs</strong> por operario (8,5 hs/día)
+                {% endif %}
+            </div>
+        </div>
+    </div>
+    
+    <div style="display: flex; align-items: center; gap: 10px;">
+        {% if operario_filtrado %}
+            <span class="badge badge-warning" style="font-size: 12.5px; padding: 7px 14px; background: rgba(245, 158, 11, 0.15); color: #b45309; border: 1px solid rgba(245, 158, 11, 0.3);">
+                <i class="bi bi-person-badge-fill"></i> Operario: <strong>[{{ operario_filtrado.id_concepto }}] {{ operario_filtrado.nombre }}</strong>
+            </span>
+            <a href="?fecha_desde={{ fecha_desde_str }}&fecha_hasta={{ fecha_hasta_str }}" class="badge badge-secondary" style="font-size: 12px; padding: 7px 12px; text-decoration: none; display: inline-flex; align-items: center; gap: 5px; background: rgba(100, 116, 139, 0.12); color: #475569;" title="Quitar filtro y ver todos los operarios">
+                <i class="bi bi-x-circle-fill"></i> Ver Todos
+            </a>
+        {% else %}
+            <span class="badge badge-info" style="font-size: 12.5px; padding: 7px 14px;">
+                <i class="bi bi-people-fill"></i> Nómina Activa: <strong>{{ resumen.total_nomina }} Operarios</strong>
+            </span>
+        {% endif %}
+    </div>
+</div>
+
+<!-- Tarjetas KPI de Cobertura Global y Rendimiento -->
+<div class="kpi-grid">
+    <!-- 1. Índice de Cobertura Global -->
+    <div class="kpi-card kpi-primary">
+        <div class="kpi-header">
+            <span class="kpi-title">Cobertura Global de Planta</span>
+            <div class="kpi-icon-wrap">
+                <i class="bi bi-pie-chart-fill"></i>
+            </div>
+        </div>
+        <div class="kpi-value">{{ resumen.indice_cobertura_global }}%</div>
+        <div class="kpi-subtext">
+            {{ resumen.horas_totales_registradas }} hs reales / {{ resumen.horas_totales_teoricas }} hs teóricas
+        </div>
+        <div class="kpi-progress">
+            <div class="kpi-progress-bar" style="width: {% if resumen.indice_cobertura_global > 100 %}100{% else %}{{ resumen.indice_cobertura_global }}{% endif %}%; background-color: #3b82f6;"></div>
+        </div>
+    </div>
+
+    <!-- 2. Tasa de Adopción de Registro -->
+    <div class="kpi-card {% if resumen.tasa_adopcion_registro >= 80 %}kpi-success{% elif resumen.tasa_adopcion_registro >= 60 %}kpi-warning{% else %}kpi-danger{% endif %}">
+        <div class="kpi-header">
+            <span class="kpi-title">Tasa de Carga / Adopción</span>
+            <div class="kpi-icon-wrap">
+                <i class="bi bi-person-check-fill"></i>
+            </div>
+        </div>
+        <div class="kpi-value">{{ resumen.tasa_adopcion_registro }}%</div>
+        <div class="kpi-subtext">
+            {% if resumen.operario_individual %}
+                {% if resumen.operarios_cumplen_adopcion > 0 %}
+                    Jornada cumplida: {{ resumen.horas_totales_registradas }} hs de {{ resumen.horas_totales_teoricas }} hs teóricas
+                {% else %}
+                    Carga insuficiente: {{ resumen.horas_totales_registradas }} hs de {{ resumen.horas_totales_teoricas }} hs teóricas
+                {% endif %}
+            {% else %}
+                <strong>{{ resumen.operarios_cumplen_adopcion }}</strong> de <strong>{{ resumen.total_nomina }}</strong> operarios alcanzaron jornada requerida (≥ 80%)
+            {% endif %}
+        </div>
+        <div class="kpi-progress">
+            <div class="kpi-progress-bar" style="width: {% if resumen.tasa_adopcion_registro > 100 %}100{% else %}{{ resumen.tasa_adopcion_registro }}{% endif %}%; background-color: {% if resumen.tasa_adopcion_registro >= 80 %}#10b981{% elif resumen.tasa_adopcion_registro >= 60 %}#f59e0b{% else %}#ef4444{% endif %};"></div>
+        </div>
+    </div>
+
+    <!-- 3. Rendimiento Técnico vs Estándar -->
+    <div class="kpi-card kpi-warning">
+        <div class="kpi-header">
+            <span class="kpi-title">Rendimiento Técnico Planta</span>
+            <div class="kpi-icon-wrap">
+                <i class="bi bi-lightning-charge-fill"></i>
+            </div>
+        </div>
+        <div class="kpi-value">{{ resumen.rendimiento_tecnico_global }}%</div>
+        <div class="kpi-subtext">
+            {{ resumen.horas_totales_estandar }} hs cotizadas vs {{ resumen.horas_totales_registradas }} hs reales
+        </div>
+        <div class="kpi-progress">
+            <div class="kpi-progress-bar" style="width: {% if resumen.rendimiento_tecnico_global > 100 %}100{% else %}{{ resumen.rendimiento_tecnico_global }}{% endif %}%; background-color: #f59e0b;"></div>
+        </div>
+    </div>
+</div>
+
+<!-- Alerta Rápida si hay Operarios con Omisión Total -->
+{% if resumen.operarios_omision_total > 0 %}
+<div class="alert alert-danger" style="margin-bottom: 24px;">
+    <i class="bi bi-exclamation-octagon-fill" style="font-size: 22px;"></i>
+    <div>
+        <strong>Atención de Auditoría:</strong> Se detectaron <strong>{{ resumen.operarios_omision_total }} operario(s)</strong> de la nómina de taller con omisión total (0 horas registradas) en {{ resumen.fecha_formateada }}.
+        <a href="?fecha_desde={{ fecha_desde_str }}&fecha_hasta={{ fecha_hasta_str }}&estado=SIN_REGISTRO{% if operario_filtro %}&operario={{ operario_filtro }}{% endif %}" style="color: #991b1b; text-decoration: underline; margin-left: 8px; font-weight: 700;">Filtrar omisiones</a>
+    </div>
+</div>
+{% endif %}
+
+<!-- Barra de Filtros Rápidos, Buscador y Ordenamiento -->
+<div class="filter-bar" style="margin-bottom: 16px;">
+    <div class="filter-pills">
+        <a href="?fecha_desde={{ fecha_desde_str }}&fecha_hasta={{ fecha_hasta_str }}&estado=TODOS{% if criterio_orden %}&orden={{ criterio_orden }}{% endif %}{% if operario_filtro %}&operario={{ operario_filtro }}{% endif %}" 
+           class="filter-pill {% if filtro_estado == 'TODOS' %}active{% endif %}">
+            <span>Todos</span>
+            <span class="pill-count">{{ resumen.total_nomina }}</span>
+        </a>
+
+        <a href="?fecha_desde={{ fecha_desde_str }}&fecha_hasta={{ fecha_hasta_str }}&estado=CUMPLIDO{% if criterio_orden %}&orden={{ criterio_orden }}{% endif %}{% if operario_filtro %}&operario={{ operario_filtro }}{% endif %}" 
+           class="filter-pill {% if filtro_estado == 'CUMPLIDO' %}active{% endif %}" style="border-left: 3px solid #10b981;">
+            <span>Cumplidos (≥ 95%)</span>
+            <span class="pill-count">{{ resumen.operarios_cumplidos }}</span>
+        </a>
+
+        <a href="?fecha_desde={{ fecha_desde_str }}&fecha_hasta={{ fecha_hasta_str }}&estado=PARCIAL{% if criterio_orden %}&orden={{ criterio_orden }}{% endif %}{% if operario_filtro %}&operario={{ operario_filtro }}{% endif %}" 
+           class="filter-pill {% if filtro_estado == 'PARCIAL' %}active{% endif %}" style="border-left: 3px solid #f59e0b;">
+            <span>Parciales (60-94%)</span>
+            <span class="pill-count">{{ resumen.operarios_parciales }}</span>
+        </a>
+
+        <a href="?fecha_desde={{ fecha_desde_str }}&fecha_hasta={{ fecha_hasta_str }}&estado=CRITICO{% if criterio_orden %}&orden={{ criterio_orden }}{% endif %}{% if operario_filtro %}&operario={{ operario_filtro }}{% endif %}" 
+           class="filter-pill {% if filtro_estado == 'CRITICO' %}active{% endif %}" style="border-left: 3px solid #f97316;">
+            <span>Críticos (&lt; 60%)</span>
+            <span class="pill-count">{{ resumen.operarios_criticos }}</span>
+        </a>
+
+        <a href="?fecha_desde={{ fecha_desde_str }}&fecha_hasta={{ fecha_hasta_str }}&estado=SIN_REGISTRO{% if criterio_orden %}&orden={{ criterio_orden }}{% endif %}{% if operario_filtro %}&operario={{ operario_filtro }}{% endif %}" 
+           class="filter-pill {% if filtro_estado == 'SIN_REGISTRO' %}active{% endif %}" style="border-left: 3px solid #ef4444;">
+            <span>Omisión Total (0%)</span>
+            <span class="pill-count">{{ resumen.operarios_omision_total }}</span>
+        </a>
+    </div>
+
+    <!-- Buscador en tiempo real -->
+    <div class="filter-search">
+        <i class="bi bi-search"></i>
+        <input type="text" id="search-operator-input" placeholder="Buscar por nombre o ID...">
+    </div>
+</div>
+
+<!-- Toolbar de Ordenamiento Interactivo de la Matriz -->
+<div class="sorting-toolbar">
+    <div style="display: flex; align-items: center; gap: 8px; font-size: 13px; font-weight: 600; color: var(--text-secondary);">
+        <i class="bi bi-arrow-down-up" style="color: #2563eb;"></i>
+        <span>Ordenar Matriz por:</span>
+    </div>
+    <div class="sort-pills">
+        <button type="button" class="btn-sort-toggle {% if criterio_orden == 'horas_desc' or not criterio_orden %}active{% endif %}" data-sort="horas" title="Ordenar por Horas Reales (Mayor a menor)">
+            <i class="bi bi-clock-history"></i>
+            <span>Horas Reales</span>
+            <i class="bi bi-sort-down sort-icon"></i>
+        </button>
+        <button type="button" class="btn-sort-toggle {% if criterio_orden == 'cumplimiento_desc' %}active{% endif %}" data-sort="cumplimiento" title="Ordenar por % de Cumplimiento">
+            <i class="bi bi-pie-chart-fill"></i>
+            <span>% Cumplimiento</span>
+            <i class="bi bi-arrow-down-up sort-icon"></i>
+        </button>
+        <button type="button" class="btn-sort-toggle {% if criterio_orden == 'nombre_asc' %}active{% endif %}" data-sort="nombre" title="Ordenar Alfabéticamente por Nombre">
+            <i class="bi bi-sort-alpha-down"></i>
+            <span>Nombre (A-Z)</span>
+            <i class="bi bi-arrow-down-up sort-icon"></i>
+        </button>
+    </div>
+</div>
+
+<!-- Tabla Principal de Auditoría y Control -->
+<div class="card">
+    <div class="card-header">
+        <div class="card-title">
+            <i class="bi bi-table" style="color: #60a5fa;"></i>
+            <span>Matriz de Registro de Producción vs {% if resumen.es_mismo_dia %}Jornada de {{ resumen.jornada_teorica_hs }} hs{% else %}Periodo de {{ resumen.horas_teoricas_operario }} hs ({{ resumen.dias_habiles }} días){% endif %}</span>
+        </div>
+        <div style="font-size: 13px; color: var(--text-muted);">
+            Mostrando <strong id="visible-operator-count" style="color: var(--text-primary);">{{ total_filtrados }}</strong> operarios
+        </div>
+    </div>
+
+    <div class="table-responsive">
+        <table class="custom-table" id="tabla-operarios">
+            <thead>
+                <tr>
+                    <th class="sortable-th" data-sort="nombre" style="min-width: 220px;" title="Clic para ordenar por Nombre">
+                        <div style="display: flex; align-items: center; justify-content: space-between;">
+                            <span>Operario</span>
+                            <i class="bi bi-arrow-down-up th-sort-icon"></i>
+                        </div>
+                    </th>
+                    <th class="sortable-th active-sort" data-sort="horas" style="min-width: 140px;" title="Clic para alternar orden por Horas Reales">
+                        <div style="display: flex; align-items: center; justify-content: space-between;">
+                            <span>Tiempo Real</span>
+                            <i class="bi bi-sort-down th-sort-icon"></i>
+                        </div>
+                    </th>
+                    <th class="sortable-th" data-sort="cumplimiento" style="min-width: 140px;" title="Clic para alternar orden por Cumplimiento">
+                        <div style="display: flex; align-items: center; justify-content: space-between;">
+                            <span>Cumplimiento (%)</span>
+                            <i class="bi bi-arrow-down-up th-sort-icon"></i>
+                        </div>
+                    </th>
+                    <th>Desvío {% if resumen.es_mismo_dia %}vs 8,5h{% else %}vs Meta{% endif %}</th>
+                    <th style="min-width: 130px;">{% if resumen.es_mismo_dia %}Baches / Omisiones{% else %}Días / Baches{% endif %}</th>
+                    <th style="min-width: 280px;">{% if resumen.es_mismo_dia %}Línea de Tiempo Diaria (06:30 - 17:30){% else %}Actividad Acumulada{% endif %}</th>
+                    <th>{% if resumen.es_mismo_dia %}Horario{% else %}Días Activos{% endif %}</th>
+                    <th>Estado</th>
+                    <th style="text-align: right;">Acciones</th>
+                </tr>
+            </thead>
+            <tbody>
+                {% for op in operarios %}
+                <tr class="operator-row" id="row-op-{{ op.id_concepto }}" data-name="{{ op.nombre }}" data-id="{{ op.id_concepto }}" data-horas="{{ op.horas_reales|stringformat:".2f" }}" data-cumplimiento="{{ op.indice_cumplimiento|stringformat:".2f" }}" onclick="toggleOperatorAccordion('{{ op.id_concepto }}', event)" title="Haga clic para desplegar u ocultar la línea de tiempo (timeline)">
+                    <!-- Operario info -->
+                    <td>
+                        <div class="op-cell">
+                            <div class="op-avatar">
+                                {{ op.nombre|slice:":2"|upper }}
+                            </div>
+                            <div>
+                                <div class="op-name">
+                                    <a href="{% url 'control_produccion:detalle_operario' op.id_concepto %}?fecha={{ fecha_hasta_str }}" 
+                                       style="color: var(--text-primary); text-decoration: none; font-weight: 600;"
+                                       onclick="event.stopPropagation();">
+                                        {{ op.nombre }}
+                                    </a>
+                                </div>
+                                <div class="op-meta">
+                                    ID: <strong>{{ op.id_concepto }}</strong> &bull; {{ op.puesto }}
+                                </div>
+                            </div>
+                        </div>
+                    </td>
+
+                    <!-- Tiempo Real Registrado -->
+                    <td>
+                        <div style="font-size: 14px; font-weight: 700; color: var(--text-primary);">
+                            {{ op.horas_reales }} hs
+                        </div>
+                        <div style="font-size: 11px; color: var(--text-muted); display: flex; align-items: center; gap: 6px; flex-wrap: wrap;">
+                            <span>{{ op.minutos_reales|floatformat:0 }} min &bull; {{ op.cantidad_registros }} tareas</span>
+                            {% if op.tiene_descanso %}
+                                <span title="Descanso de {{ op.minutos_descanso|floatformat:0 }} min registrado (excluido de órdenes productivas)" 
+                                      style="color: #475569; background: rgba(100, 116, 139, 0.12); padding: 1px 5px; border-radius: 3px; font-size: 10px; border: 1px solid rgba(203, 213, 225, 0.8);">
+                                    <i class="bi bi-cup-hot-fill" style="font-size: 9.5px; color: #64748b;"></i> {{ op.minutos_descanso|floatformat:0 }}m desc.
+                                </span>
+                            {% endif %}
+                        </div>
+                    </td>
+
+                    <!-- Cumplimiento % frente a meta teórica -->
+                    <td>
+                        <div class="compliance-box">
+                            <div class="compliance-val">
+                                <span class="compliance-pct" style="
+                                    {% if op.estado == 'CUMPLIDO' %}color: var(--color-success);
+                                    {% elif op.estado == 'PARCIAL' %}color: var(--color-warning);
+                                    {% elif op.estado == 'CRITICO' %}color: var(--color-orange);
+                                    {% else %}color: var(--color-danger);{% endif %}">
+                                    {{ op.indice_cumplimiento }}%
+                                </span>
+                            </div>
+                            <div class="progress-track">
+                                <div class="progress-fill 
+                                    {% if op.estado == 'CUMPLIDO' %}fill-success
+                                    {% elif op.estado == 'PARCIAL' %}fill-warning
+                                    {% elif op.estado == 'CRITICO' %}fill-orange
+                                    {% else %}fill-danger{% endif %}"
+                                    style="width: {% if op.indice_cumplimiento > 100 %}100{% else %}{{ op.indice_cumplimiento }}{% endif %}%;">
+                                </div>
+                            </div>
+                        </div>
+                    </td>
+
+                    <!-- Desvío vs Meta teórica -->
+                    <td>
+                        {% if op.desvio_horas >= 0 %}
+                            <span class="badge badge-success" style="font-size: 11px;">
+                                +{{ op.desvio_horas }} hs
+                            </span>
+                        {% else %}
+                            <span class="badge {% if op.estado == 'SIN_REGISTRO' %}badge-danger{% else %}badge-orange{% endif %}" style="font-size: 11px;">
+                                {{ op.desvio_horas }} hs
+                            </span>
+                        {% endif %}
+                    </td>
+
+                    <!-- Baches y Omisiones / Días -->
+                    <td>
+                        {% if resumen.es_mismo_dia %}
+                            {% if op.estado == 'SIN_REGISTRO' %}
+                                <span class="badge badge-danger" title="No registró nada en todo el día">
+                                    <i class="bi bi-x-circle-fill"></i> Omisión Total
+                                </span>
+                            {% elif op.cantidad_baches == 0 %}
+                                <span class="badge badge-success" title="Carga continua sin baches detectados">
+                                    <i class="bi bi-check2"></i> Continuo
+                                </span>
+                            {% else %}
+                                <span class="badge badge-warning" title="Baches temporales sin registrar entre órdenes">
+                                    <i class="bi bi-clock-history"></i> {{ op.cantidad_baches }} bache(s) ({{ op.minutos_en_baches|floatformat:0 }}m)
+                                </span>
+                            {% endif %}
+                        {% else %}
+                            {% if op.estado == 'SIN_REGISTRO' %}
+                                <span class="badge badge-danger" title="Sin registros en todo el intervalo">
+                                    <i class="bi bi-x-circle-fill"></i> 0 días cargados
+                                </span>
+                            {% else %}
+                                <span class="badge {% if op.cantidad_baches == 0 %}badge-success{% else %}badge-warning{% endif %}" title="Baches detectados a lo largo del periodo">
+                                    <i class="bi bi-clock-history"></i> {{ op.cantidad_baches }} bache(s) ({{ op.horas_en_baches }}h)
+                                </span>
+                            {% endif %}
+                        {% endif %}
+                    </td>
+
+                    <!-- Línea de Tiempo Diaria o Actividad Acumulada (Mini Gantt) -->
+                    <td>
+                        {% if resumen.es_mismo_dia %}
+                            <div class="timeline-gantt-track" title="Clic para ver detalle ampliado en acordeón">
+                                {% for bloque in op.timeline_bloques %}
+                                    {% if bloque.tipo == 'TAREA' %}
+                                        <div class="timeline-segment" 
+                                             style="left: {{ bloque.left_pct }}%; width: {{ bloque.width_pct }}%; background-color: {{ bloque.color }};"
+                                             data-title="{{ bloque.titulo }}"
+                                             data-desc="Máquina: {{ bloque.maquina }} ({{ bloque.duracion_min }} min)"
+                                             data-time="{{ bloque.hora_inicio }} - {{ bloque.hora_fin }}">
+                                        </div>
+                                    {% elif bloque.tipo == 'DESCANSO' %}
+                                        <div class="timeline-segment" 
+                                             style="left: {{ bloque.left_pct }}%; width: {{ bloque.width_pct }}%; background-color: {{ bloque.color }};"
+                                             data-title="{{ bloque.titulo }}"
+                                             data-desc="Pausa / Descanso registrado (No productivo)"
+                                             data-time="{{ bloque.hora_inicio }} - {{ bloque.hora_fin }}">
+                                        </div>
+                                    {% else %}
+                                        <div class="timeline-segment seg-bache {% if bloque.es_omision %}seg-omision-total{% endif %}" 
+                                             style="left: {{ bloque.left_pct }}%; width: {{ bloque.width_pct }}%;"
+                                             data-title="{{ bloque.titulo }}"
+                                             data-desc="Sin producción registrada"
+                                             data-time="{{ bloque.hora_inicio }} - {{ bloque.hora_fin }}">
+                                        </div>
+                                    {% endif %}
+                                {% endfor %}
+                            </div>
+                        {% else %}
+                            <div style="display: flex; flex-direction: column; gap: 4px;">
+                                <div style="display: flex; justify-content: space-between; font-size: 11px; color: var(--text-muted);">
+                                    <span>{{ op.dias_con_actividad }} de {{ resumen.dias_habiles }} días con carga</span>
+                                    <strong>{{ op.promedio_diario_horas }} hs/día</strong>
+                                </div>
+                                <div class="progress-track" style="height: 8px;">
+                                    <div class="progress-fill 
+                                        {% if op.estado == 'CUMPLIDO' %}fill-success
+                                        {% elif op.estado == 'PARCIAL' %}fill-warning
+                                        {% elif op.estado == 'CRITICO' %}fill-orange
+                                        {% else %}fill-danger{% endif %}"
+                                        style="width: {% if op.indice_cumplimiento > 100 %}100{% else %}{{ op.indice_cumplimiento }}{% endif %}%;">
+                                    </div>
+                                </div>
+                            </div>
+                        {% endif %}
+                    </td>
+
+                    <!-- Horario Registrado o Días Activos -->
+                    <td>
+                        {% if resumen.es_mismo_dia %}
+                            <div style="font-size: 12px; font-weight: 500;">
+                                {{ op.primer_registro }} a {{ op.ultimo_registro }}
+                            </div>
+                        {% else %}
+                            <div style="font-size: 12px; font-weight: 600; color: var(--text-primary);">
+                                {{ op.dias_con_actividad }} / {{ resumen.dias_habiles }} días
+                            </div>
+                            <div style="font-size: 11px; color: var(--text-muted);">
+                                Meta: {{ op.horas_teoricas }} hs
+                            </div>
+                        {% endif %}
+                    </td>
+
+                    <!-- Badge Estado -->
+                    <td>
+                        <span class="badge {{ op.estado_badge_class }}">
+                            <i class="bi {{ op.badge_icon }}"></i>
+                            {{ op.estado_label }}
+                        </span>
+                    </td>
+
+                    <!-- Acciones -->
+                    <td style="text-align: right; white-space: nowrap;">
+                        <button type="button" 
+                                class="btn btn-secondary btn-sm btn-toggle-timeline" 
+                                onclick="toggleOperatorAccordion('{{ op.id_concepto }}', event); event.stopPropagation();"
+                                aria-expanded="false"
+                                title="Desplegar u ocultar Línea de Tiempo (Timeline)">
+                            <i class="bi bi-chevron-down accordion-chevron"></i>
+                            <span>Timeline</span>
+                        </button>
+                        <a href="{% url 'control_produccion:detalle_operario' op.id_concepto %}?fecha={{ fecha_hasta_str }}" 
+                           class="btn btn-secondary btn-sm" 
+                           title="Auditar Ficha Completa del Operario"
+                           onclick="event.stopPropagation();">
+                            <i class="bi bi-box-arrow-up-right"></i>
+                        </a>
+                    </td>
+                </tr>
+
+                <!-- PANEL ACORDEÓN DESPLEGABLE CON LÍNEA DE TIEMPO (TIMELINE) -->
+                <tr class="operator-accordion-row" id="accordion-op-{{ op.id_concepto }}" style="display: none;">
+                    <td colspan="9">
+                        <div class="accordion-timeline-container">
+                            <!-- Barra superior dentro del acordeón -->
+                            <div class="accordion-header-toolbar">
+                                <div style="display: flex; align-items: center; gap: 10px; flex-wrap: wrap;">
+                                    <div style="display: flex; align-items: center; gap: 8px;">
+                                        <div class="op-avatar" style="width: 28px; height: 28px; font-size: 11px;">
+                                            {{ op.nombre|slice:":2"|upper }}
+                                        </div>
+                                        <span style="font-size: 14px; font-weight: 700; color: var(--text-primary);">
+                                            {{ op.nombre }} (Legajo {{ op.id_concepto }})
+                                        </span>
+                                    </div>
+                                    <span class="badge" style="background: rgba(37, 99, 235, 0.1); color: #2563eb; border: 1px solid rgba(37, 99, 235, 0.25); font-size: 11.5px;">
+                                        <i class="bi bi-calendar3"></i> {% if resumen.es_mismo_dia %}{{ fecha_hasta_str }}{% else %}Último día auditado: {{ fecha_hasta_str }}{% endif %}
+                                    </span>
+                                    {% if op.tiene_descanso %}
+                                    <span class="badge" style="background: rgba(100, 116, 139, 0.12); color: #475569; border: 1px solid rgba(148, 163, 184, 0.4); font-size: 11.5px;">
+                                        <i class="bi bi-cup-hot-fill"></i> Descanso registrado ({{ op.minutos_descanso|floatformat:0 }}m fuera de órdenes de taller)
+                                    </span>
+                                    {% endif %}
+                                    {% if op.cantidad_baches > 0 %}
+                                    <span class="badge badge-warning" style="font-size: 11.5px;">
+                                        <i class="bi bi-exclamation-triangle-fill"></i> {{ op.cantidad_baches }} bache(s) inactivo(s)
+                                    </span>
+                                    {% endif %}
+                                </div>
+                                <div style="display: flex; align-items: center; gap: 8px;">
+                                    <span style="font-size: 12px; color: var(--text-muted);">
+                                        Jornada: <strong>{{ op.primer_registro }}</strong> a <strong>{{ op.ultimo_registro }}</strong>
+                                    </span>
+                                    <a href="{% url 'control_produccion:detalle_operario' op.id_concepto %}?fecha={{ fecha_hasta_str }}" 
+                                       class="btn btn-primary btn-sm" style="font-size: 11.5px; padding: 4px 10px;">
+                                        <i class="bi bi-box-arrow-up-right"></i> Ficha Completa
+                                    </a>
+                                </div>
+                            </div>
+
+                            <!-- LÍNEA DE TIEMPO HORIZONTAL GANTT (06:30 A 17:30) -->
+                            <div class="accordion-gantt-wrapper">
+                                <div class="gantt-header-label">
+                                    <i class="bi bi-distribute-horizontal" style="color: #2563eb;"></i>
+                                    <span>Línea de Tiempo Visual de la Jornada (06:30 a 17:30)</span>
+                                </div>
+
+                                <div class="accordion-gantt-track">
+                                    <!-- Guías verticales por cada hora completa (06:30 a 17:30 = 660 min) -->
+                                    <div class="gantt-guideline" style="left: 4.54%;" title="07:00"></div>
+                                    <div class="gantt-guideline" style="left: 13.63%;" title="08:00"></div>
+                                    <div class="gantt-guideline" style="left: 22.72%;" title="09:00"></div>
+                                    <div class="gantt-guideline" style="left: 31.81%;" title="10:00"></div>
+                                    <div class="gantt-guideline" style="left: 40.90%;" title="11:00"></div>
+                                    <div class="gantt-guideline" style="left: 50.00%;" title="12:00"></div>
+                                    <div class="gantt-guideline" style="left: 59.09%;" title="13:00"></div>
+                                    <div class="gantt-guideline" style="left: 68.18%;" title="14:00"></div>
+                                    <div class="gantt-guideline" style="left: 77.27%;" title="15:00"></div>
+                                    <div class="gantt-guideline" style="left: 86.36%;" title="16:00"></div>
+                                    <div class="gantt-guideline" style="left: 95.45%;" title="17:00"></div>
+
+                                    <!-- Render de bloques de procesos, descansos y baches -->
+                                    {% if op.estado == 'SIN_REGISTRO' or not op.timeline_bloques %}
+                                        <div class="accordion-block-omision-total">
+                                            <i class="bi bi-x-circle-fill" style="font-size: 16px;"></i>
+                                            <span>JORNADA SIN REGISTRO DE PRODUCCIÓN (OMISIÓN TOTAL)</span>
+                                        </div>
+                                    {% else %}
+                                        {% for bloque in op.timeline_bloques %}
+                                            {% if bloque.tipo == 'TAREA' %}
+                                                <div class="accordion-gantt-block block-tarea" 
+                                                     style="left: {{ bloque.left_pct }}%; width: {{ bloque.width_pct }}%; background-color: {{ bloque.color }};"
+                                                     title="[ORDEN {{ bloque.id_orden }}] {{ bloque.titulo }}&#10;Máquina: {{ bloque.maquina }}&#10;Horario: {{ bloque.hora_inicio }} - {{ bloque.hora_fin }} ({{ bloque.duracion_min }} min){% if bloque.articulo %}&#10;Artículo: {{ bloque.articulo }} - {{ bloque.articulo_desc }}{% endif %}{% if bloque.cantidad_producida %}&#10;Cantidad Producida: {{ bloque.cantidad_producida }}{% endif %}">
+                                                    <div class="block-label-inner">
+                                                        <span>{{ bloque.titulo }} ({{ bloque.duracion_min }}m)</span>
+                                                    </div>
+                                                </div>
+                                            {% elif bloque.tipo == 'DESCANSO' %}
+                                                <div class="accordion-gantt-block block-descanso" 
+                                                     style="left: {{ bloque.left_pct }}%; width: {{ bloque.width_pct }}%;"
+                                                     title="[DESCANSO] {{ bloque.titulo }}&#10;Horario: {{ bloque.hora_inicio }} - {{ bloque.hora_fin }} ({{ bloque.duracion_min }} min)&#10;Nota: Excluido de órdenes de producción de taller">
+                                                    <div class="block-label-inner">
+                                                        <i class="bi bi-cup-hot-fill"></i>
+                                                        <span>Descanso ({{ bloque.duracion_min }}m)</span>
+                                                    </div>
+                                                </div>
+                                            {% else %}
+                                                <div class="accordion-gantt-block block-bache {% if bloque.es_omision %}block-omision{% endif %}" 
+                                                     style="left: {{ bloque.left_pct }}%; width: {{ bloque.width_pct }}%;"
+                                                     title="[BACHE INACTIVO] Sin registro de producción&#10;Horario: {{ bloque.hora_inicio }} - {{ bloque.hora_fin }} ({{ bloque.duracion_min }} min)">
+                                                    <div class="block-label-inner">
+                                                        <i class="bi bi-clock-history"></i>
+                                                        <span>Bache {{ bloque.duracion_min }}m</span>
+                                                    </div>
+                                                </div>
+                                            {% endif %}
+                                        {% endfor %}
+                                    {% endif %}
+                                </div>
+
+                                <!-- Escala horaria inferior -->
+                                <div class="accordion-scale-ticks">
+                                    <span>06:30</span>
+                                    <span>07:00</span>
+                                    <span>08:00</span>
+                                    <span>09:00</span>
+                                    <span>10:00</span>
+                                    <span>11:00</span>
+                                    <span>12:00</span>
+                                    <span>13:00</span>
+                                    <span>14:00</span>
+                                    <span>15:00</span>
+                                    <span>16:00</span>
+                                    <span>17:00</span>
+                                    <span>17:30</span>
+                                </div>
+                            </div>
+
+                            <!-- Leyenda de colores y estados de la línea de tiempo -->
+                            <div class="accordion-legend">
+                                <div class="legend-item">
+                                    <span class="legend-dot" style="background-color: #2563eb;"></span>
+                                    <span>Órdenes de Trabajo / Procesos Registrados</span>
+                                </div>
+                                <div class="legend-item">
+                                    <span class="legend-dot" style="background: repeating-linear-gradient(45deg, #64748b, #64748b 4px, #475569 4px, #475569 8px); border: 1px solid rgba(0,0,0,0.15);"></span>
+                                    <span>Descanso Detectado (Excluido de horas de taller)</span>
+                                </div>
+                                <div class="legend-item">
+                                    <span class="legend-dot" style="background: repeating-linear-gradient(45deg, #f97316, #f97316 4px, #fed7aa 4px, #fed7aa 8px); border: 1px solid #f97316;"></span>
+                                    <span>Bache / Inactividad entre órdenes</span>
+                                </div>
+                                <div style="margin-left: auto; font-size: 12px; font-weight: 600; color: var(--text-primary);">
+                                    Total Registrado Taller: <span style="color: #2563eb;">{{ op.horas_reales }} hs</span> ({{ op.indice_cumplimiento }}%)
+                                </div>
+                            </div>
+
+                            <!-- TABLA DE DESGLOSE CRONOLÓGICO DE EVENTOS -->
+                            {% if op.timeline_bloques and op.estado != 'SIN_REGISTRO' %}
+                            <div style="margin-top: 18px;">
+                                <div style="display: flex; align-items: center; justify-content: space-between; margin-bottom: 8px;">
+                                    <div style="font-size: 12px; font-weight: 700; color: var(--text-secondary); text-transform: uppercase; letter-spacing: 0.5px; display: flex; align-items: center; gap: 6px;">
+                                        <i class="bi bi-list-check" style="color: #2563eb; font-size: 14px;"></i>
+                                        <span>Desglose Cronológico de Tareas, Descansos y Baches</span>
+                                    </div>
+                                    <div style="font-size: 11.5px; color: var(--text-muted);">
+                                        Total registros: <strong>{{ op.timeline_bloques|length }}</strong> bloques
+                                    </div>
+                                </div>
+
+                                <div class="accordion-table-wrapper">
+                                    <table class="accordion-events-table">
+                                        <thead>
+                                            <tr>
+                                                <th style="width: 120px;">Horario</th>
+                                                <th style="width: 85px;">Duración</th>
+                                                <th style="width: 130px;">Tipo</th>
+                                                <th>Orden / Tarea / Concepto</th>
+                                                <th style="width: 140px;">Máquina</th>
+                                                <th style="width: 90px; text-align: right;">Cantidad</th>
+                                            </tr>
+                                        </thead>
+                                        <tbody>
+                                            {% for bloque in op.timeline_bloques %}
+                                            <tr class="{% if bloque.tipo == 'DESCANSO' %}row-descanso{% elif bloque.tipo == 'BACHE' %}row-bache{% endif %}">
+                                                <td style="font-weight: 600; font-family: monospace; font-size: 11.5px; color: var(--text-primary);">
+                                                    {{ bloque.hora_inicio }} - {{ bloque.hora_fin }}
+                                                </td>
+                                                <td>
+                                                    <strong>{{ bloque.duracion_min }}</strong> min
+                                                </td>
+                                                <td>
+                                                    {% if bloque.tipo == 'TAREA' %}
+                                                        <span class="badge" style="background: rgba(37, 99, 235, 0.1); color: #2563eb; border: 1px solid rgba(37, 99, 235, 0.25); font-size: 10.5px;">
+                                                            <i class="bi bi-gear-fill"></i> Proceso
+                                                        </span>
+                                                    {% elif bloque.tipo == 'DESCANSO' %}
+                                                        <span class="badge" style="background: rgba(100, 116, 139, 0.15); color: #475569; border: 1px solid rgba(100, 116, 139, 0.3); font-size: 10.5px;">
+                                                            <i class="bi bi-cup-hot-fill"></i> Descanso
+                                                        </span>
+                                                    {% else %}
+                                                        <span class="badge badge-warning" style="font-size: 10.5px;">
+                                                            <i class="bi bi-exclamation-circle"></i> Bache
+                                                        </span>
+                                                    {% endif %}
+                                                </td>
+                                                <td>
+                                                    <div style="font-weight: 600; color: var(--text-primary); font-size: 12px;">
+                                                        {{ bloque.titulo }}
+                                                    </div>
+                                                    {% if bloque.articulo %}
+                                                    <div style="font-size: 11px; color: var(--text-muted); margin-top: 1px;">
+                                                        Art: <strong>{{ bloque.articulo }}</strong> &bull; {{ bloque.articulo_desc }}
+                                                    </div>
+                                                    {% endif %}
+                                                </td>
+                                                <td style="font-size: 11.5px; color: var(--text-secondary);">
+                                                    {{ bloque.maquina|default:"-" }}
+                                                </td>
+                                                <td style="text-align: right; font-weight: 600; font-size: 12px;">
+                                                    {% if bloque.cantidad_producida %}
+                                                        {{ bloque.cantidad_producida|floatformat:0 }}
+                                                    {% else %}
+                                                        -
+                                                    {% endif %}
+                                                </td>
+                                            </tr>
+                                            {% endfor %}
+                                        </tbody>
+                                    </table>
+                                </div>
+                            </div>
+                            {% endif %}
+                        </div>
+                    </td>
+                </tr>
+                {% empty %}
+                <tr>
+                    <td colspan="9" style="text-align: center; padding: 40px; color: var(--text-muted);">
+                        <i class="bi bi-inbox" style="font-size: 32px; display: block; margin-bottom: 8px;"></i>
+                        No se encontraron operarios para los filtros seleccionados.
+                    </td>
+                </tr>
+                {% endfor %}
+            </tbody>
+        </table>
+    </div>
+</div>
+{% endblock %}

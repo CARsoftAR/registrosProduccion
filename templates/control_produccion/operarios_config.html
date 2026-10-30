@@ -1,0 +1,168 @@
+{% extends 'base.html' %}
+{% load static %}
+
+{% block title %}Gestión de Operarios de Taller | ABBAMAT{% endblock %}
+
+{% block content %}
+<!-- Cabecera de Página -->
+<div style="margin-bottom: 24px; display: flex; justify-content: space-between; align-items: flex-start; flex-wrap: wrap; gap: 16px;">
+    <div>
+        <h1 style="font-size: 26px; font-weight: 700; color: var(--text-primary); margin-bottom: 6px;">
+            Gestión de Operarios de Taller
+        </h1>
+        <p style="color: var(--text-secondary); font-size: 14px;">
+            Nómina activa auditada y configuración de esquemas horarios semanales de trabajo.
+        </p>
+    </div>
+
+    <div style="display: flex; gap: 10px; flex-wrap: wrap;">
+        <!-- Botón + Nuevo Operario (Ruta dedicada al formulario limpio estilo Ausentismo) -->
+        <a href="{% url 'control_produccion:nuevo_operario' %}" class="btn btn-primary" id="btnNuevoOperario" style="display: inline-flex; align-items: center; gap: 8px; text-decoration: none; padding: 9px 18px; font-weight: 600;">
+            <i class="bi bi-person-plus-fill"></i>
+            <span>+ Nuevo Operario</span>
+        </a>
+
+        <form method="POST" action="" style="display: inline;">
+            {% csrf_token %}
+            <input type="hidden" name="accion" value="sincronizar">
+            <button type="submit" class="btn btn-secondary" title="Sincronizar novedades de conceptos desde TMAN014">
+                <i class="bi bi-arrow-repeat"></i>
+                <span>Sincronizar ERP</span>
+            </button>
+        </form>
+    </div>
+</div>
+
+<!-- Tarjetas KPI -->
+<div class="kpi-grid" style="grid-template-columns: repeat(2, 1fr); margin-bottom: 24px;">
+    <div class="kpi-card kpi-success">
+        <div class="kpi-header">
+            <span class="kpi-title">Operarios Activos en Planta</span>
+            <div class="kpi-icon-wrap"><i class="bi bi-person-check-fill"></i></div>
+        </div>
+        <div class="kpi-value">{{ total_activos }}</div>
+        <div class="kpi-subtext">Son auditados diariamente frente a las 8,5 hs teóricas (510 min)</div>
+    </div>
+
+    <div class="kpi-card kpi-primary">
+        <div class="kpi-header">
+            <span class="kpi-title">Empleados Desactivados / Ocultos</span>
+            <div class="kpi-icon-wrap"><i class="bi bi-eye-slash-fill"></i></div>
+        </div>
+        <div class="kpi-value">{{ total_inactivos }}</div>
+        <div class="kpi-subtext">
+            Excluidos y ocultos automáticamente de la nómina y de la auditoría diaria
+            {% if total_inactivos > 0 %}
+                {% if ver_inactivos %}
+                    &bull; <a href="{% url 'control_produccion:operarios_config' %}" style="color: var(--accent-blue); font-weight: 600;">Ocultar inactivos</a>
+                {% else %}
+                    &bull; <a href="{% url 'control_produccion:operarios_config' %}?ver_inactivos=1" style="color: var(--accent-blue); font-weight: 600;">Ver inactivos ({{ total_inactivos }})</a>
+                {% endif %}
+            {% endif %}
+        </div>
+    </div>
+</div>
+
+<!-- Tabla de Operarios Activos -->
+<div class="card">
+    <div class="card-header">
+        <div class="card-title">
+            <i class="bi bi-people-fill" style="color: #2563eb;"></i>
+            <span>Nómina Activa de Planta</span>
+            {% if ver_inactivos %}
+                <span class="badge badge-warning" style="margin-left: 8px;">Incluyendo inactivos</span>
+            {% endif %}
+        </div>
+        <span class="badge badge-outline" style="font-weight: 600;">
+            Mostrando {{ operarios|length }} operarios
+        </span>
+    </div>
+    <div class="table-responsive">
+        <table class="custom-table">
+            <thead>
+                <tr>
+                    <th style="width: 100px;">LEGAJO</th>
+                    <th>NOMBRE COMPLETO</th>
+                    <th style="width: 220px;">HORARIO BASE</th>
+                    <th style="width: 180px;">SECTOR / CATEGORÍA</th>
+                    <th style="width: 130px;">ESTADO</th>
+                    <th style="text-align: right; width: 180px;">ACCIONES</th>
+                </tr>
+            </thead>
+            <tbody>
+                {% for op in operarios %}
+                <tr>
+                    <td>
+                        <span style="background: #f1f5f9; border: 1px solid #e2e8f0; border-radius: 8px; padding: 4px 10px; font-weight: 800; font-family: monospace; font-size: 13px; color: #0f172a; display: inline-block;">
+                            {{ op.id_concepto }}
+                        </span>
+                    </td>
+                    <td>
+                        <div style="display: flex; align-items: center; gap: 10px;">
+                            <div style="width: 32px; height: 32px; border-radius: 50%; background: #eff6ff; color: #2563eb; font-weight: 800; font-size: 12px; display: inline-flex; align-items: center; justify-content: center; flex-shrink: 0; border: 1px solid #dbeafe;">
+                                {{ op.iniciales }}
+                            </div>
+                            <span style="font-weight: 600; color: #1e293b;">
+                                {{ op.nombre }}
+                            </span>
+                        </div>
+                    </td>
+                    <td>
+                        <span style="background: #eff6ff; color: #2563eb; border: 1px solid #dbeafe; border-radius: 8px; padding: 4px 10px; font-size: 12px; font-weight: 700; display: inline-flex; align-items: center; gap: 6px;">
+                            <i class="bi bi-clock"></i>
+                            {{ op.horario_base }}
+                        </span>
+                    </td>
+                    <td>
+                        <span style="background: #f8fafc; color: #475569; border: 1px solid #e2e8f0; border-radius: 8px; padding: 3px 8px; font-size: 11.5px; font-weight: 700;">
+                            {{ op.categoria|default:'PRODUCCIÓN' }}
+                        </span>
+                    </td>
+                    <td>
+                        {% if op.activo %}
+                            <span style="background: #dcfce7; color: #16a34a; border-radius: 12px; padding: 3px 10px; font-size: 11px; font-weight: 800; display: inline-flex; align-items: center; gap: 6px;">
+                                <span style="width: 6px; height: 6px; border-radius: 50%; background: #16a34a;"></span>
+                                Activo
+                            </span>
+                        {% else %}
+                            <span class="badge badge-outline" style="color: var(--text-muted);">
+                                Inactivo
+                            </span>
+                        {% endif %}
+                    </td>
+                    <td style="text-align: right;">
+                        <div style="display: inline-flex; gap: 8px;">
+                            <!-- Botón Editar que navega al formulario limpio -->
+                            <a href="{% url 'control_produccion:editar_operario' op.id_concepto %}" class="btn btn-secondary btn-sm" title="Editar esquema rotativo y datos" style="text-decoration: none; display: inline-flex; align-items: center; gap: 4px; padding: 6px 10px; font-size: 12px; font-weight: 600;">
+                                <i class="bi bi-pencil-fill" style="color: #d97706;"></i> Editar
+                            </a>
+
+                            <form method="POST" action="" style="display: inline;" onsubmit="return confirm('¿Confirma cambiar el estado de {{ op.nombre|escapejs }}?');">
+                                {% csrf_token %}
+                                <input type="hidden" name="accion" value="toggle_activo">
+                                <input type="hidden" name="id" value="{{ op.id }}">
+                                {% if op.activo %}
+                                    <button type="submit" class="btn btn-secondary btn-sm" style="color: #dc2626;" title="Desactivar y ocultar automáticamente de la nómina activa">
+                                        <i class="bi bi-person-dash"></i> Desactivar
+                                    </button>
+                                {% else %}
+                                    <button type="submit" class="btn btn-secondary btn-sm" style="color: #059669;" title="Reactivar e incluir en la nómina activa">
+                                        <i class="bi bi-person-check"></i> Activar
+                                    </button>
+                                {% endif %}
+                            </form>
+                        </div>
+                    </td>
+                </tr>
+                {% empty %}
+                <tr>
+                    <td colspan="6" style="text-align: center; padding: 40px; color: var(--text-muted);">
+                        No hay operarios activos en la nómina de planta.
+                    </td>
+                </tr>
+                {% endfor %}
+            </tbody>
+        </table>
+    </div>
+</div>
+{% endblock %}

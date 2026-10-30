@@ -1,0 +1,215 @@
+{% load static %}
+<!DOCTYPE html>
+<html lang="es">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>{% block title %}Control y Auditoría de Producción | ABBAMAT{% endblock %}</title>
+    
+    <!-- Google Fonts -->
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&family=Outfit:wght@500;600;700;800&display=swap" rel="stylesheet">
+    
+    <!-- Bootstrap Icons -->
+    <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.11.3/font/bootstrap-icons.min.css">
+    
+    <!-- Chart.js -->
+    <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.1/dist/chart.umd.min.js"></script>
+    
+    <!-- Custom Theme Styles -->
+    <link rel="stylesheet" href="{% static 'css/styles.css' %}">
+    {% block extra_css %}{% endblock %}
+    {% block extra_head %}{% endblock %}
+</head>
+<body>
+    <div class="app-container">
+        <!-- Sidebar Navigation -->
+        <aside class="app-sidebar">
+            <div class="brand-section">
+                <div class="brand-logo-icon">
+                    <i class="bi bi-gear-wide-connected"></i>
+                </div>
+                <div>
+                    <div class="brand-title">ABBAMAT</div>
+                    <div class="brand-subtitle">Control de Taller</div>
+                </div>
+            </div>
+
+            <nav class="sidebar-nav">
+                <div class="nav-section-title">Auditoría Operativa</div>
+                
+                <!-- Menú Principal / Dashboard -->
+                <a href="{% url 'control_produccion:dashboard' %}?fecha_desde={{ fecha_desde_str|default:'' }}&fecha_hasta={{ fecha_hasta_str|default:'' }}{% if operario_filtro %}&operario={{ operario_filtro }}{% endif %}" 
+                   class="nav-item-link {% if seccion_activa == 'dashboard' %}active{% endif %}">
+                    <i class="bi bi-grid-1x2-fill"></i>
+                    <span>Dashboard Ejecutivo</span>
+                </a>
+
+                <!-- Opción Dedicada Requerida: Control de Producción -->
+                <a href="{% url 'control_produccion:control_produccion' %}?fecha_desde={{ fecha_desde_str|default:'' }}&fecha_hasta={{ fecha_hasta_str|default:'' }}{% if operario_filtro %}&operario={{ operario_filtro }}{% endif %}" 
+                   class="nav-item-link {% if seccion_activa == 'control_produccion' %}active{% endif %}">
+                    <i class="bi bi-clock-history"></i>
+                    <span>Control de Producción</span>
+                </a>
+
+                <div class="nav-section-title">Configuración de Planta</div>
+                
+                <a href="{% url 'control_produccion:operarios_config' %}" 
+                   class="nav-item-link {% if seccion_activa == 'configuracion' and request.resolver_match.url_name == 'operarios_config' %}active{% endif %}">
+                    <i class="bi bi-people-fill"></i>
+                    <span>Operarios de Taller</span>
+                </a>
+            </nav>
+
+            <div class="sidebar-footer">
+                <div class="db-status-badge">
+                    <div class="status-dot"></div>
+                    <span>ERP EqualRP: <strong>Solo Lectura</strong></span>
+                </div>
+            </div>
+        </aside>
+
+        <!-- Main Content Area -->
+        <div class="app-main">
+            <!-- Topbar Header -->
+            <header class="app-topbar">
+                {% block topbar_date_selector %}
+                    {% if seccion_activa == 'dashboard' or seccion_activa == 'control_produccion' %}
+                        <!-- Selector de Rango de Fechas (Desde / Hasta) y Operario Unificado -->
+                        <form id="date-range-filter-form" method="GET" action="" class="topbar-date-range-selector">
+                            {% if filtro_estado and filtro_estado != 'TODOS' %}
+                                <input type="hidden" name="estado" value="{{ filtro_estado }}">
+                            {% endif %}
+                            {% if criterio_orden %}
+                                <input type="hidden" name="orden" value="{{ criterio_orden }}">
+                            {% endif %}
+                            <div class="range-inputs-wrapper">
+                                <span class="range-icon"><i class="bi bi-calendar3-range"></i></span>
+                                <div class="range-field">
+                                    <span class="range-label">Desde</span>
+                                    <input type="date" id="topbar-fecha-desde" name="fecha_desde" value="{{ fecha_desde_str|default:'' }}" required>
+                                </div>
+                                <span class="range-arrow"><i class="bi bi-arrow-right-short"></i></span>
+                                <div class="range-field">
+                                    <span class="range-label">Hasta</span>
+                                    <input type="date" id="topbar-fecha-hasta" name="fecha_hasta" value="{{ fecha_hasta_str|default:'' }}" required>
+                                </div>
+
+                                <div class="range-separator" style="width: 1px; height: 26px; background: var(--border-color); margin: 0 4px;"></div>
+
+                                <!-- Componente de Selección / Búsqueda Específica de Operario -->
+                                <div class="range-field operator-filter-field">
+                                    <span class="range-label"><i class="bi bi-person-badge"></i> Operario</span>
+                                    <select id="topbar-operario" name="operario" class="topbar-operario-select" title="Alternar entre Todos los Operarios o uno en particular">
+                                        <option value="" {% if not operario_filtro %}selected{% endif %}>Todos los operarios (Consolidado)</option>
+                                        {% for op in nomina_completa_activa %}
+                                            <option value="{{ op.id_concepto }}" {% if operario_filtro == op.id_concepto %}selected{% endif %}>
+                                                [{{ op.id_concepto }}] {{ op.nombre }}
+                                            </option>
+                                        {% endfor %}
+                                    </select>
+                                </div>
+
+                                <button type="submit" class="btn-range-apply" title="Aplicar Filtros">
+                                    <i class="bi bi-funnel-fill"></i>
+                                    <span>Filtrar</span>
+                                </button>
+                            </div>
+
+                            <div class="range-quick-pills">
+                                <a href="?fecha_desde={{ preset_hoy_desde|default:'' }}&fecha_hasta={{ preset_hoy_hasta|default:'' }}{% if filtro_estado and filtro_estado != 'TODOS' %}&estado={{ filtro_estado }}{% endif %}{% if operario_filtro %}&operario={{ operario_filtro }}{% endif %}" 
+                                   class="quick-pill {% if es_hoy %}active{% endif %}" title="Filtrar Hoy">Hoy</a>
+                                <a href="?fecha_desde={{ preset_ayer_desde|default:'' }}&fecha_hasta={{ preset_ayer_hasta|default:'' }}{% if filtro_estado and filtro_estado != 'TODOS' %}&estado={{ filtro_estado }}{% endif %}{% if operario_filtro %}&operario={{ operario_filtro }}{% endif %}" 
+                                   class="quick-pill {% if es_ayer %}active{% endif %}" title="Filtrar Ayer">Ayer</a>
+                                <a href="?fecha_desde={{ preset_7dias_desde|default:'' }}&fecha_hasta={{ preset_7dias_hasta|default:'' }}{% if filtro_estado and filtro_estado != 'TODOS' %}&estado={{ filtro_estado }}{% endif %}{% if operario_filtro %}&operario={{ operario_filtro }}{% endif %}" 
+                                   class="quick-pill {% if not es_hoy and not es_ayer and fecha_desde_str == preset_7dias_desde %}active{% endif %}" title="Últimos 7 días">7 Días</a>
+                                <a href="?fecha_desde={{ preset_mes_desde|default:'' }}&fecha_hasta={{ preset_mes_hasta|default:'' }}{% if filtro_estado and filtro_estado != 'TODOS' %}&estado={{ filtro_estado }}{% endif %}{% if operario_filtro %}&operario={{ operario_filtro }}{% endif %}" 
+                                   class="quick-pill {% if not es_hoy and not es_ayer and fecha_desde_str == preset_mes_desde %}active{% endif %}" title="Mes actual">Este Mes</a>
+                            </div>
+                        </form>
+                    {% elif seccion_activa == 'detalle_operario' %}
+                        <!-- Selector Diario para Vistas Detalle de Operario -->
+                        <form id="date-filter-form" method="GET" action="" class="topbar-date-selector">
+                            {% if filtro_estado and filtro_estado != 'TODOS' %}
+                                <input type="hidden" name="estado" value="{{ filtro_estado }}">
+                            {% endif %}
+                            
+                            <a href="?fecha={{ fecha_ayer|default:'' }}{% if filtro_estado %}&estado={{ filtro_estado }}{% endif %}" 
+                               class="btn-date-nav" title="Día Anterior">
+                                <i class="bi bi-chevron-left"></i>
+                            </a>
+
+                            <div style="display: flex; align-items: center; gap: 8px;">
+                                <i class="bi bi-calendar3" style="color: #2563eb;"></i>
+                                <input type="date" id="topbar-date-input" name="fecha" value="{{ fecha_str|default:'' }}">
+                            </div>
+
+                            <a href="?fecha={{ fecha_manana|default:'' }}{% if filtro_estado %}&estado={{ filtro_estado }}{% endif %}" 
+                               class="btn-date-nav" title="Día Siguiente">
+                                <i class="bi bi-chevron-right"></i>
+                            </a>
+
+                            {% if not es_hoy %}
+                                <a href="?fecha=" class="btn-date-badge" title="Ir al día actual">HOY</a>
+                            {% endif %}
+                        </form>
+                    {% endif %}
+                {% endblock %}
+
+                <!-- Acciones Rápidas -->
+                <div class="topbar-actions">
+                    {% if seccion_activa == 'dashboard' %}
+                        <a href="{% url 'control_produccion:exportar_excel' %}?fecha_desde={{ fecha_desde_str|default:'' }}&fecha_hasta={{ fecha_hasta_str|default:'' }}{% if operario_filtro %}&operario={{ operario_filtro }}{% endif %}" 
+                           class="btn btn-secondary btn-sm" title="Descargar Informe Analítico en Excel del Intervalo">
+                            <i class="bi bi-file-earmark-excel-fill" style="color: #10b981;"></i>
+                            <span>Exportar Excel</span>
+                        </a>
+                        <a href="{% url 'control_produccion:control_produccion' %}?fecha_desde={{ fecha_desde_str|default:'' }}&fecha_hasta={{ fecha_hasta_str|default:'' }}{% if operario_filtro %}&operario={{ operario_filtro }}{% endif %}" 
+                           class="btn btn-primary btn-sm">
+                            <i class="bi bi-speedometer2"></i>
+                            <span>Auditoría Taller</span>
+                        </a>
+                    {% elif seccion_activa == 'control_produccion' %}
+                        <a href="{% url 'control_produccion:exportar_excel' %}?fecha_desde={{ fecha_desde_str|default:'' }}&fecha_hasta={{ fecha_hasta_str|default:'' }}{% if operario_filtro %}&operario={{ operario_filtro }}{% endif %}" 
+                           class="btn btn-secondary btn-sm" title="Descargar Informe Analítico en Excel del Intervalo">
+                            <i class="bi bi-file-earmark-excel-fill" style="color: #10b981;"></i>
+                            <span>Exportar Excel</span>
+                        </a>
+                        <a href="{% url 'control_produccion:dashboard' %}?fecha_desde={{ fecha_desde_str|default:'' }}&fecha_hasta={{ fecha_hasta_str|default:'' }}{% if operario_filtro %}&operario={{ operario_filtro }}{% endif %}" 
+                           class="btn btn-primary btn-sm">
+                            <i class="bi bi-grid-1x2-fill"></i>
+                            <span>Dashboard</span>
+                        </a>
+                    {% elif seccion_activa == 'detalle_operario' %}
+                        <a href="{% url 'control_produccion:exportar_excel' %}?fecha={{ fecha_str|default:'' }}{% if operario_filtro %}&operario={{ operario_filtro }}{% endif %}" 
+                           class="btn btn-secondary btn-sm" title="Descargar Informe Analítico en Excel">
+                            <i class="bi bi-file-earmark-excel-fill" style="color: #10b981;"></i>
+                            <span>Exportar Excel</span>
+                        </a>
+                    {% endif %}
+                </div>
+            </header>
+
+            <!-- Page Body -->
+            <main class="page-content">
+                <!-- Mensajes Flash de Django -->
+                {% if messages %}
+                    {% for message in messages %}
+                        <div class="alert {% if message.tags == 'error' %}alert-danger{% elif message.tags == 'warning' %}alert-warning{% else %}alert-success{% endif %}">
+                            <i class="bi {% if message.tags == 'error' %}bi-x-octagon-fill{% elif message.tags == 'warning' %}bi-exclamation-triangle-fill{% else %}bi-check-circle-fill{% endif %}"></i>
+                            <span>{{ message }}</span>
+                        </div>
+                    {% endfor %}
+                {% endif %}
+
+                {% block content %}{% endblock %}
+            </main>
+        </div>
+    </div>
+
+    <!-- Scripts -->
+    <script src="{% static 'js/app.js' %}"></script>
+    {% block extra_js %}{% endblock %}
+</body>
+</html>

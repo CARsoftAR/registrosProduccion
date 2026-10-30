@@ -1,0 +1,1073 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Aura Botanica | Checkout Exclusivo & Panel VIP</title>
+    <!-- Fuentes Google: Plus Jakarta Sans & Outfit -->
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Outfit:wght@400;500;600;700;800&family=Plus+Jakarta+Sans:wght@400;500;600;700;800&display=swap" rel="stylesheet">
+    <!-- Iconos Bootstrap -->
+    <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.11.3/font/bootstrap-icons.min.css">
+    <!-- Canvas Confetti para el botón del cohete -->
+    <script src="https://cdn.jsdelivr.net/npm/canvas-confetti@1.9.2/dist/confetti.browser.min.js"></script>
+
+    <style>
+        :root {
+            --bg-canvas: #f8fafc;
+            --card-bg: #ffffff;
+            --text-main: #0f172a;
+            --text-muted: #64748b;
+            --neon-blue: #2563eb;
+            --neon-blue-glow: rgba(37, 99, 235, 0.25);
+            --bright-coral: #ff5757;
+            --bright-coral-glow: rgba(255, 87, 87, 0.25);
+            --emerald-green: #10b981;
+            --emerald-glow: rgba(16, 185, 129, 0.25);
+            --lavender: #8b5cf6;
+            --amber: #f59e0b;
+            --radius-xl: 24px;
+            --radius-md: 16px;
+            --radius-sm: 12px;
+            --shadow-float: 0 25px 50px -12px rgba(15, 23, 42, 0.09), 0 8px 24px -4px rgba(15, 23, 42, 0.04);
+            --shadow-glow: 0 0 30px rgba(37, 99, 235, 0.15);
+        }
+
+        * {
+            box-sizing: border-box;
+            margin: 0;
+            padding: 0;
+            font-family: 'Plus Jakarta Sans', sans-serif;
+            -webkit-font-smoothing: antialiased;
+        }
+
+        body {
+            background-color: var(--bg-canvas);
+            color: var(--text-main);
+            min-height: 100vh;
+            position: relative;
+            overflow-x: hidden;
+            background-image: 
+                radial-gradient(circle at 10% 10%, rgba(37, 99, 235, 0.05) 0%, transparent 40%),
+                radial-gradient(circle at 90% 20%, rgba(255, 87, 87, 0.05) 0%, transparent 40%),
+                radial-gradient(circle at 50% 90%, rgba(16, 185, 129, 0.06) 0%, transparent 50%);
+        }
+
+        h1, h2, h3, h4, .brand-font {
+            font-family: 'Outfit', sans-serif;
+        }
+
+        /* Barra de Navegación */
+        .aura-nav {
+            background: rgba(255, 255, 255, 0.85);
+            backdrop-filter: blur(16px);
+            border-bottom: 1px solid rgba(226, 232, 240, 0.8);
+            position: sticky;
+            top: 0;
+            z-index: 100;
+            padding: 16px 32px;
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+        }
+
+        .brand-logo {
+            display: flex;
+            align-items: center;
+            gap: 12px;
+            text-decoration: none;
+            color: var(--text-main);
+        }
+
+        .brand-icon {
+            width: 44px;
+            height: 44px;
+            border-radius: 14px;
+            background: linear-gradient(135deg, #10b981 0%, #2563eb 100%);
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            color: white;
+            font-size: 22px;
+            box-shadow: 0 8px 16px rgba(16, 185, 129, 0.25);
+        }
+
+        .brand-name {
+            font-size: 22px;
+            font-weight: 800;
+            letter-spacing: -0.5px;
+            background: linear-gradient(135deg, #0f172a 30%, #2563eb 100%);
+            -webkit-background-clip: text;
+            -webkit-text-fill-color: transparent;
+        }
+
+        .nav-pill-center {
+            display: flex;
+            background: #f1f5f9;
+            padding: 6px 10px;
+            border-radius: 100px;
+            gap: 6px;
+        }
+
+        .nav-pill-link {
+            padding: 8px 18px;
+            border-radius: 100px;
+            font-size: 13px;
+            font-weight: 600;
+            text-decoration: none;
+            color: var(--text-muted);
+            transition: all 0.2s ease;
+        }
+
+        .nav-pill-link.active, .nav-pill-link:hover {
+            background: white;
+            color: var(--text-main);
+            box-shadow: 0 4px 10px rgba(0,0,0,0.05);
+        }
+
+        .vip-trigger-btn {
+            background: linear-gradient(135deg, #ff5757 0%, #8b5cf6 50%, #2563eb 100%);
+            color: white;
+            border: none;
+            padding: 10px 20px;
+            border-radius: 100px;
+            font-size: 13px;
+            font-weight: 700;
+            cursor: pointer;
+            display: inline-flex;
+            align-items: center;
+            gap: 8px;
+            box-shadow: 0 8px 20px rgba(255, 87, 87, 0.3);
+            transition: all 0.25s cubic-bezier(0.34, 1.56, 0.64, 1);
+        }
+
+        .vip-trigger-btn:hover {
+            transform: translateY(-2px) scale(1.03);
+            box-shadow: 0 12px 25px rgba(255, 87, 87, 0.4);
+        }
+
+        /* Layout Principal */
+        .aura-container {
+            max-width: 1360px;
+            margin: 0 auto;
+            padding: 40px 24px 80px;
+            display: grid;
+            grid-template-columns: 1.15fr 0.85fr;
+            gap: 40px;
+            align-items: start;
+        }
+
+        @media (max-width: 1024px) {
+            .aura-container {
+                grid-template-columns: 1fr;
+            }
+        }
+
+        /* Tarjeta de Checkout */
+        .checkout-card {
+            background: var(--card-bg);
+            border-radius: var(--radius-xl);
+            box-shadow: var(--shadow-float);
+            padding: 36px;
+            border: 1px solid rgba(226, 232, 240, 0.7);
+            position: relative;
+        }
+
+        .checkout-badge {
+            display: inline-flex;
+            align-items: center;
+            gap: 6px;
+            padding: 6px 14px;
+            border-radius: 100px;
+            background: rgba(37, 99, 235, 0.08);
+            color: var(--neon-blue);
+            font-size: 12px;
+            font-weight: 700;
+            margin-bottom: 14px;
+            text-transform: uppercase;
+            letter-spacing: 0.5px;
+        }
+
+        .checkout-title {
+            font-size: 30px;
+            font-weight: 800;
+            color: var(--text-main);
+            letter-spacing: -0.5px;
+            margin-bottom: 8px;
+        }
+
+        .checkout-subtitle {
+            color: var(--text-muted);
+            font-size: 14px;
+            margin-bottom: 28px;
+        }
+
+        /* Resumen de Producto */
+        .order-product-strip {
+            background: #f8fafc;
+            border: 1px solid #e2e8f0;
+            border-radius: var(--radius-md);
+            padding: 16px 20px;
+            display: flex;
+            align-items: center;
+            gap: 18px;
+            margin-bottom: 28px;
+        }
+
+        .product-thumb {
+            width: 70px;
+            height: 70px;
+            border-radius: var(--radius-sm);
+            background: linear-gradient(135deg, #10b981 0%, #3b82f6 100%);
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 32px;
+            box-shadow: 0 8px 16px rgba(16, 185, 129, 0.2);
+            flex-shrink: 0;
+        }
+
+        .product-strip-info {
+            flex: 1;
+        }
+
+        .product-strip-name {
+            font-weight: 700;
+            font-size: 16px;
+            color: var(--text-main);
+            margin-bottom: 4px;
+        }
+
+        .product-strip-variant {
+            font-size: 13px;
+            color: var(--text-muted);
+            display: flex;
+            align-items: center;
+            gap: 6px;
+        }
+
+        .product-strip-price {
+            font-family: 'Outfit', sans-serif;
+            font-size: 22px;
+            font-weight: 800;
+            color: var(--neon-blue);
+        }
+
+        /* Inputs Modernos */
+        .form-section-title {
+            font-size: 15px;
+            font-weight: 700;
+            color: var(--text-main);
+            margin-bottom: 14px;
+            display: flex;
+            align-items: center;
+            gap: 8px;
+        }
+
+        .input-grid-2 {
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: 16px;
+            margin-bottom: 24px;
+        }
+
+        .form-group {
+            display: flex;
+            flex-direction: column;
+            gap: 6px;
+        }
+
+        .form-label {
+            font-size: 12px;
+            font-weight: 600;
+            color: var(--text-muted);
+            text-transform: uppercase;
+            letter-spacing: 0.5px;
+        }
+
+        .aura-input {
+            width: 100%;
+            padding: 14px 18px;
+            border-radius: var(--radius-sm);
+            border: 1.5px solid #e2e8f0;
+            background: #ffffff;
+            font-size: 14px;
+            font-weight: 500;
+            color: var(--text-main);
+            transition: all 0.2s ease;
+            outline: none;
+        }
+
+        .aura-input:focus {
+            border-color: var(--neon-blue);
+            box-shadow: 0 0 0 4px var(--neon-blue-glow);
+        }
+
+        /* Botones Grandes de Métodos de Pago */
+        .payment-methods-stack {
+            display: flex;
+            flex-direction: column;
+            gap: 16px;
+            margin-bottom: 32px;
+        }
+
+        .payment-card-btn {
+            background: #ffffff;
+            border: 2px solid #e2e8f0;
+            border-radius: 20px;
+            padding: 20px 24px;
+            cursor: pointer;
+            transition: all 0.25s cubic-bezier(0.34, 1.56, 0.64, 1);
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            gap: 16px;
+            position: relative;
+            overflow: hidden;
+        }
+
+        .payment-card-btn:hover {
+            transform: translateY(-2px);
+            border-color: #cbd5e1;
+            box-shadow: 0 10px 25px rgba(0, 0, 0, 0.04);
+        }
+
+        .payment-card-btn.selected {
+            border-color: var(--neon-blue);
+            background: #f8faff;
+            box-shadow: 0 12px 30px var(--neon-blue-glow);
+        }
+
+        .payment-card-btn.selected.mp {
+            border-color: #009ee3;
+            background: rgba(0, 158, 227, 0.04);
+            box-shadow: 0 12px 30px rgba(0, 158, 227, 0.2);
+        }
+
+        .payment-card-btn.selected.transfer {
+            border-color: var(--lavender);
+            background: rgba(139, 92, 246, 0.04);
+            box-shadow: 0 12px 30px rgba(139, 92, 246, 0.2);
+        }
+
+        .payment-card-btn.selected.cash {
+            border-color: var(--emerald-green);
+            background: rgba(16, 185, 129, 0.04);
+            box-shadow: 0 12px 30px rgba(16, 185, 129, 0.2);
+        }
+
+        .payment-left {
+            display: flex;
+            align-items: center;
+            gap: 18px;
+        }
+
+        .payment-icon-box {
+            width: 52px;
+            height: 52px;
+            border-radius: 16px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 26px;
+            flex-shrink: 0;
+            transition: all 0.2s ease;
+        }
+
+        .icon-mp {
+            background: rgba(0, 158, 227, 0.12);
+            color: #009ee3;
+        }
+        .icon-transfer {
+            background: rgba(139, 92, 246, 0.12);
+            color: var(--lavender);
+        }
+        .icon-cash {
+            background: rgba(16, 185, 129, 0.12);
+            color: var(--emerald-green);
+        }
+
+        .payment-details {
+            text-align: left;
+        }
+
+        .payment-title {
+            font-size: 17px;
+            font-weight: 700;
+            color: var(--text-main);
+            margin-bottom: 4px;
+            display: flex;
+            align-items: center;
+            gap: 10px;
+        }
+
+        .payment-desc {
+            font-size: 13px;
+            color: var(--text-muted);
+        }
+
+        .payment-tag {
+            padding: 4px 10px;
+            border-radius: 100px;
+            font-size: 11px;
+            font-weight: 700;
+            letter-spacing: 0.3px;
+        }
+
+        .tag-mp {
+            background: #e0f2fe;
+            color: #0284c7;
+        }
+        .tag-transfer {
+            background: #ede9fe;
+            color: #7c3aed;
+        }
+        .tag-cash {
+            background: #d1fae5;
+            color: #059669;
+        }
+
+        .payment-radio-circle {
+            width: 24px;
+            height: 24px;
+            border-radius: 50%;
+            border: 2px solid #cbd5e1;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            transition: all 0.2s ease;
+        }
+
+        .payment-card-btn.selected .payment-radio-circle {
+            border-color: var(--neon-blue);
+            background: var(--neon-blue);
+        }
+        .payment-card-btn.selected.mp .payment-radio-circle {
+            border-color: #009ee3;
+            background: #009ee3;
+        }
+        .payment-card-btn.selected.transfer .payment-radio-circle {
+            border-color: var(--lavender);
+            background: var(--lavender);
+        }
+        .payment-card-btn.selected.cash .payment-radio-circle {
+            border-color: var(--emerald-green);
+            background: var(--emerald-green);
+        }
+
+        .payment-radio-circle:after {
+            content: '';
+            width: 8px;
+            height: 8px;
+            border-radius: 50%;
+            background: white;
+            display: none;
+        }
+
+        .payment-card-btn.selected .payment-radio-circle:after {
+            display: block;
+        }
+
+        /* Botón de Confirmación */
+        .btn-checkout-confirm {
+            width: 100%;
+            padding: 20px;
+            border-radius: var(--radius-md);
+            border: none;
+            background: linear-gradient(135deg, var(--neon-blue) 0%, #1d4ed8 100%);
+            color: white;
+            font-size: 17px;
+            font-weight: 800;
+            cursor: pointer;
+            box-shadow: 0 12px 30px var(--neon-blue-glow);
+            transition: all 0.3s cubic-bezier(0.34, 1.56, 0.64, 1);
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            gap: 12px;
+        }
+
+        .btn-checkout-confirm:hover {
+            transform: translateY(-3px) scale(1.01);
+            box-shadow: 0 16px 36px rgba(37, 99, 235, 0.4);
+        }
+
+        .guarantee-note {
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            gap: 8px;
+            margin-top: 18px;
+            font-size: 13px;
+            color: var(--text-muted);
+            font-weight: 500;
+        }
+
+        /* Panel VIP Flotante de Productos */
+        .vip-panel-card {
+            background: var(--card-bg);
+            border-radius: var(--radius-xl);
+            box-shadow: var(--shadow-float);
+            padding: 36px;
+            border: 2px solid transparent;
+            background-clip: padding-box;
+            position: relative;
+        }
+
+        .vip-panel-card:before {
+            content: '';
+            position: absolute;
+            top: -2px; left: -2px; right: -2px; bottom: -2px;
+            background: linear-gradient(135deg, #ff5757, #8b5cf6, #2563eb, #10b981);
+            border-radius: calc(var(--radius-xl) + 2px);
+            z-index: -1;
+            opacity: 0.85;
+        }
+
+        .vip-badge-header {
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            margin-bottom: 18px;
+        }
+
+        .vip-pill {
+            background: linear-gradient(135deg, #ff5757 0%, #8b5cf6 100%);
+            color: white;
+            padding: 6px 14px;
+            border-radius: 100px;
+            font-size: 12px;
+            font-weight: 800;
+            letter-spacing: 0.5px;
+            display: inline-flex;
+            align-items: center;
+            gap: 6px;
+            box-shadow: 0 6px 16px rgba(255, 87, 87, 0.3);
+        }
+
+        .vip-title {
+            font-size: 26px;
+            font-weight: 800;
+            color: var(--text-main);
+            letter-spacing: -0.5px;
+            margin-bottom: 6px;
+        }
+
+        .vip-subtitle {
+            font-size: 13px;
+            color: var(--text-muted);
+            margin-bottom: 24px;
+        }
+
+        /* Selector de Variantes Colorido */
+        .variants-section {
+            margin-bottom: 24px;
+        }
+
+        .variant-chips-grid {
+            display: flex;
+            flex-wrap: wrap;
+            gap: 10px;
+            margin-top: 8px;
+        }
+
+        .variant-chip {
+            padding: 8px 16px;
+            border-radius: 100px;
+            font-size: 13px;
+            font-weight: 700;
+            cursor: pointer;
+            border: 2px solid #e2e8f0;
+            background: #ffffff;
+            color: var(--text-main);
+            display: flex;
+            align-items: center;
+            gap: 8px;
+            transition: all 0.2s cubic-bezier(0.34, 1.56, 0.64, 1);
+        }
+
+        .variant-chip:hover {
+            transform: translateY(-2px);
+            border-color: #cbd5e1;
+        }
+
+        .variant-chip.active {
+            border-color: var(--neon-blue);
+            background: #eff6ff;
+            color: var(--neon-blue);
+            box-shadow: 0 4px 14px var(--neon-blue-glow);
+        }
+
+        .color-dot {
+            width: 12px;
+            height: 12px;
+            border-radius: 50%;
+            display: inline-block;
+        }
+
+        /* Selector de Tamaños */
+        .size-pills-row {
+            display: grid;
+            grid-template-columns: repeat(3, 1fr);
+            gap: 10px;
+            margin-top: 8px;
+        }
+
+        .size-pill {
+            padding: 10px;
+            border-radius: var(--radius-sm);
+            border: 1.5px solid #e2e8f0;
+            background: white;
+            text-align: center;
+            font-size: 13px;
+            font-weight: 700;
+            cursor: pointer;
+            transition: all 0.2s ease;
+        }
+
+        .size-pill.active {
+            border-color: var(--bright-coral);
+            background: #fff5f5;
+            color: var(--bright-coral);
+            box-shadow: 0 4px 14px var(--bright-coral-glow);
+        }
+
+        /* Vista Previa en Vivo */
+        .live-preview-box {
+            background: #f8fafc;
+            border: 1px dashed #cbd5e1;
+            border-radius: var(--radius-md);
+            padding: 18px;
+            margin-bottom: 24px;
+            display: flex;
+            align-items: center;
+            gap: 16px;
+        }
+
+        .live-preview-thumb {
+            width: 56px;
+            height: 56px;
+            border-radius: 12px;
+            background: linear-gradient(135deg, #ff5757 0%, #f59e0b 100%);
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 26px;
+            color: white;
+            flex-shrink: 0;
+            transition: all 0.3s ease;
+        }
+
+        .live-preview-details {
+            flex: 1;
+        }
+
+        .live-preview-title {
+            font-size: 15px;
+            font-weight: 700;
+            color: var(--text-main);
+        }
+
+        .live-preview-sub {
+            font-size: 12px;
+            color: var(--text-muted);
+        }
+
+        .live-preview-price {
+            font-family: 'Outfit', sans-serif;
+            font-size: 18px;
+            font-weight: 800;
+            color: var(--emerald-green);
+        }
+
+        /* Botón de Publicar Producto Cohete */
+        .btn-rocket-publish {
+            width: 100%;
+            padding: 22px;
+            border-radius: var(--radius-md);
+            border: none;
+            background: linear-gradient(135deg, #ff5757 0%, #ff6b6b 40%, #2563eb 100%);
+            color: white;
+            font-family: 'Outfit', sans-serif;
+            font-size: 19px;
+            font-weight: 800;
+            letter-spacing: 0.3px;
+            cursor: pointer;
+            box-shadow: 0 16px 36px rgba(255, 87, 87, 0.35);
+            transition: all 0.35s cubic-bezier(0.34, 1.56, 0.64, 1);
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            gap: 14px;
+            position: relative;
+            overflow: hidden;
+        }
+
+        .btn-rocket-publish:hover {
+            transform: translateY(-4px) scale(1.02);
+            box-shadow: 0 20px 45px rgba(255, 87, 87, 0.45);
+        }
+
+        .btn-rocket-publish:active {
+            transform: translateY(-1px) scale(0.99);
+        }
+
+        .rocket-icon {
+            font-size: 24px;
+            display: inline-block;
+            transition: transform 0.4s cubic-bezier(0.34, 1.56, 0.64, 1);
+        }
+
+        .btn-rocket-publish:hover .rocket-icon {
+            transform: translateY(-5px) translateX(3px) rotate(15deg) scale(1.25);
+        }
+
+        /* Toast de Éxito */
+        .aura-toast {
+            position: fixed;
+            bottom: 30px;
+            right: 30px;
+            background: #ffffff;
+            border-radius: 20px;
+            padding: 18px 24px;
+            box-shadow: 0 20px 45px rgba(0, 0, 0, 0.15);
+            display: flex;
+            align-items: center;
+            gap: 16px;
+            border-left: 6px solid var(--emerald-green);
+            transform: translateY(120%);
+            transition: transform 0.35s cubic-bezier(0.34, 1.56, 0.64, 1);
+            z-index: 2000;
+        }
+        .aura-toast.show {
+            transform: translateY(0);
+        }
+    </style>
+</head>
+<body>
+
+    <!-- Navegación Aura Botanica -->
+    <header class="aura-nav">
+        <a href="#" class="brand-logo">
+            <div class="brand-icon">
+                <i class="bi bi-flower1"></i>
+            </div>
+            <div>
+                <span class="brand-name">Aura Botanica</span>
+                <span style="display: block; font-size: 11px; font-weight: 700; color: var(--emerald-green); letter-spacing: 1px; text-transform: uppercase;">
+                    Organic Lifestyle &bull; Luxury Wellness
+                </span>
+            </div>
+        </a>
+
+        <div class="nav-pill-center">
+            <a href="#" class="nav-pill-link active">🌿 Checkout Express</a>
+            <a href="#" class="nav-pill-link">🌱 Colección Botánica</a>
+            <a href="#" class="nav-pill-link">🏺 Cerámica Sage</a>
+        </div>
+
+        <button class="vip-trigger-btn" onclick="scrollToVipPanel()">
+            <i class="bi bi-stars"></i>
+            <span>Panel VIP Creador</span>
+        </button>
+    </header>
+
+    <!-- Contenedor Principal Split-Screen -->
+    <main class="aura-container">
+
+        <!-- Columna 1: Pasarela de Pago Minimalista de Una Sola Columna -->
+        <section class="checkout-card">
+            <div class="checkout-badge">
+                <i class="bi bi-shield-lock-fill"></i> Checkout Cifrado &bull; 100% Seguro
+            </div>
+            <h1 class="checkout-title">Finalizar Tu Pedido</h1>
+            <p class="checkout-subtitle">Selecciona tu método de pago preferido para despachar tu paquete botánico hoy.</p>
+
+            <!-- Tira de Producto Comprado -->
+            <div class="order-product-strip">
+                <div class="product-thumb">🌿</div>
+                <div class="product-strip-info">
+                    <div class="product-strip-name">Ritual Botánico Selva Serena</div>
+                    <div class="product-strip-variant">
+                        <span>Edición Limitada 300ml</span> &bull; 
+                        <span style="color: var(--emerald-green); font-weight: 700;">Envío Express Gratis 🚀</span>
+                    </div>
+                </div>
+                <div class="product-strip-price">$34.500</div>
+            </div>
+
+            <!-- Datos de Entrega -->
+            <div class="form-section-title">
+                <i class="bi bi-geo-alt-fill" style="color: var(--neon-blue);"></i>
+                <span>Datos de Envío</span>
+            </div>
+            <div class="input-grid-2">
+                <div class="form-group">
+                    <label class="form-label">Nombre y Apellido</label>
+                    <input type="text" class="aura-input" value="Camila Albarracín" placeholder="Tu nombre completo">
+                </div>
+                <div class="form-group">
+                    <label class="form-label">WhatsApp de Contacto</label>
+                    <input type="text" class="aura-input" value="+54 9 11 4598-7210" placeholder="Ej: +54 9 11...">
+                </div>
+            </div>
+
+            <!-- Botones Grandes de Métodos de Pago -->
+            <div class="form-section-title">
+                <i class="bi bi-wallet2" style="color: var(--bright-coral);"></i>
+                <span>Selecciona Tu Método de Pago</span>
+            </div>
+
+            <div class="payment-methods-stack">
+                <!-- Opción 1: Mercado Pago -->
+                <div class="payment-card-btn selected mp" onclick="selectPayment(this, 'mp')">
+                    <div class="payment-left">
+                        <div class="payment-icon-box icon-mp">
+                            <i class="bi bi-credit-card-2-front-fill"></i>
+                        </div>
+                        <div class="payment-details">
+                            <div class="payment-title">
+                                <span>Mercado Pago</span>
+                                <span class="payment-tag tag-mp">Más Rápido ⚡</span>
+                            </div>
+                            <div class="payment-desc">Tarjetas de crédito, débito o dinero en cuenta &bull; Hasta 6 cuotas sin interés</div>
+                        </div>
+                    </div>
+                    <div class="payment-radio-circle"></div>
+                </div>
+
+                <!-- Opción 2: Transferencia Bancaria -->
+                <div class="payment-card-btn transfer" onclick="selectPayment(this, 'transfer')">
+                    <div class="payment-left">
+                        <div class="payment-icon-box icon-transfer">
+                            <i class="bi bi-bank2"></i>
+                        </div>
+                        <div class="payment-details">
+                            <div class="payment-title">
+                                <span>Transferencia Bancaria Inmediata</span>
+                                <span class="payment-tag tag-transfer">15% OFF Extra 🔥</span>
+                            </div>
+                            <div class="payment-desc">Alias: AURA.BOTANICA.PROD &bull; CBU directo con acreditación al instante</div>
+                        </div>
+                    </div>
+                    <div class="payment-radio-circle"></div>
+                </div>
+
+                <!-- Opción 3: Efectivo / Pago Contra Entrega -->
+                <div class="payment-card-btn cash" onclick="selectPayment(this, 'cash')">
+                    <div class="payment-left">
+                        <div class="payment-icon-box icon-cash">
+                            <i class="bi bi-cash-stack"></i>
+                        </div>
+                        <div class="payment-details">
+                            <div class="payment-title">
+                                <span>Efectivo Contra Entrega</span>
+                                <span class="payment-tag tag-cash">Cero Riesgo 🛡️</span>
+                            </div>
+                            <div class="payment-desc">Aboná en mano al mensajero cuando recibas tu pedido en CABA o GBA</div>
+                        </div>
+                    </div>
+                    <div class="payment-radio-circle"></div>
+                </div>
+            </div>
+
+            <!-- Botón Principal de Confirmación -->
+            <button class="btn-checkout-confirm" onclick="confirmarCompra()">
+                <i class="bi bi-lock-fill"></i>
+                <span id="btnConfirmText">Pagar con Mercado Pago ($34.500 ARS)</span>
+            </button>
+
+            <div class="guarantee-note">
+                <i class="bi bi-patch-check-fill" style="color: var(--emerald-green); font-size: 16px;"></i>
+                <span>Garantía de Satisfacción Botánica de 30 Días &bull; Despacho Prioritario</span>
+            </div>
+        </section>
+
+        <!-- Columna 2: Panel VIP Flotante de Productos -->
+        <aside class="vip-panel-card" id="vipPanelCard">
+            <div class="vip-badge-header">
+                <span class="vip-pill">
+                    <i class="bi bi-crown-fill"></i> VIP CREATOR STUDIO
+                </span>
+                <span style="font-size: 12px; font-weight: 700; color: var(--neon-blue);">
+                    <i class="bi bi-broadcast"></i> Modo Carga Rápida
+                </span>
+            </div>
+
+            <h2 class="vip-title">Cargar Nuevo Producto</h2>
+            <p class="vip-subtitle">Panel VIP de administración para dar de alta colecciones exclusivas en tiempo real.</p>
+
+            <div class="form-group" style="margin-bottom: 16px;">
+                <label class="form-label">Nombre del Producto</label>
+                <input type="text" id="vipProdName" class="aura-input" value="Elixir Sagrado de Eucalipto Real" oninput="updateLivePreview()">
+            </div>
+
+            <div class="input-grid-2" style="margin-bottom: 16px;">
+                <div class="form-group">
+                    <label class="form-label">Precio ($ ARS)</label>
+                    <input type="number" id="vipProdPrice" class="aura-input" value="42900" oninput="updateLivePreview()">
+                </div>
+                <div class="form-group">
+                    <label class="form-label">Stock Inicial</label>
+                    <input type="number" class="aura-input" value="25">
+                </div>
+            </div>
+
+            <!-- Selector de Variantes Colorido -->
+            <div class="variants-section">
+                <label class="form-label">Aroma & Esencia (Selector de Variantes)</label>
+                <div class="variant-chips-grid">
+                    <div class="variant-chip active" onclick="selectVariantChip(this, '🌿 Salvia & Eucalipto', '#10b981')">
+                        <span class="color-dot" style="background: #10b981;"></span>
+                        <span>Salvia & Eucalipto</span>
+                    </div>
+                    <div class="variant-chip" onclick="selectVariantChip(this, '🌺 Hibisco & Mandarina', '#ff5757')">
+                        <span class="color-dot" style="background: #ff5757;"></span>
+                        <span>Hibisco Coral</span>
+                    </div>
+                    <div class="variant-chip" onclick="selectVariantChip(this, '🌊 Lluvia Azul', '#3b82f6')">
+                        <span class="color-dot" style="background: #3b82f6;"></span>
+                        <span>Lluvia Azul</span>
+                    </div>
+                    <div class="variant-chip" onclick="selectVariantChip(this, '🍯 Ámbar Solar', '#f59e0b')">
+                        <span class="color-dot" style="background: #f59e0b;"></span>
+                        <span>Ámbar Solar</span>
+                    </div>
+                    <div class="variant-chip" onclick="selectVariantChip(this, '💜 Lavanda Nocturna', '#8b5cf6')">
+                        <span class="color-dot" style="background: #8b5cf6;"></span>
+                        <span>Lavanda Zen</span>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Selector de Tamaños -->
+            <div class="variants-section">
+                <label class="form-label">Tamaño / Presentación</label>
+                <div class="size-pills-row">
+                    <div class="size-pill" onclick="selectSize(this, '150ml Pocket')">150ml Pocket</div>
+                    <div class="size-pill active" onclick="selectSize(this, '300ml Ritual')">300ml Ritual</div>
+                    <div class="size-pill" onclick="selectSize(this, '500ml Luxury')">500ml Luxury</div>
+                </div>
+            </div>
+
+            <!-- Live Product Preview -->
+            <div class="live-preview-box">
+                <div class="live-preview-thumb" id="previewThumb">🌿</div>
+                <div class="live-preview-details">
+                    <div class="live-preview-title" id="previewTitle">Elixir Sagrado de Eucalipto Real</div>
+                    <div class="live-preview-sub" id="previewVariant">Salvia & Eucalipto &bull; 300ml Ritual</div>
+                </div>
+                <div class="live-preview-price" id="previewPrice">$42.900</div>
+            </div>
+
+            <!-- Botón Grande de Acción Principal con Cohete -->
+            <button class="btn-rocket-publish" id="btnPublishRocket" onclick="publicarProductoVip()">
+                <span class="rocket-icon">🚀</span>
+                <span>Publicar Producto</span>
+            </button>
+        </aside>
+
+    </main>
+
+    <!-- Toast de Notificación Flotante -->
+    <div class="aura-toast" id="auraToast">
+        <div style="font-size: 32px;">🎉</div>
+        <div>
+            <div style="font-weight: 800; font-size: 16px; color: var(--text-main);" id="toastTitle">¡Producto Publicado con Éxito!</div>
+            <div style="font-size: 13px; color: var(--text-muted);" id="toastMsg">Ya está disponible en la tienda oficial Aura Botanica.</div>
+        </div>
+    </div>
+
+    <script>
+        let selectedMethod = 'mp';
+        let currentVariantName = 'Salvia & Eucalipto';
+        let currentSize = '300ml Ritual';
+
+        function selectPayment(element, method) {
+            document.querySelectorAll('.payment-card-btn').forEach(btn => {
+                btn.classList.remove('selected');
+            });
+            element.classList.add('selected');
+            selectedMethod = method;
+
+            const btnText = document.getElementById('btnConfirmText');
+            if (method === 'mp') {
+                btnText.textContent = 'Pagar con Mercado Pago ($34.500 ARS)';
+            } else if (method === 'transfer') {
+                btnText.textContent = 'Transferir con 15% OFF ($29.325 ARS)';
+            } else if (method === 'cash') {
+                btnText.textContent = 'Confirmar Entrega y Pagar en Efectivo ($34.500)';
+            }
+        }
+
+        function selectVariantChip(element, name, color) {
+            document.querySelectorAll('.variant-chip').forEach(c => c.classList.remove('active'));
+            element.classList.add('active');
+            currentVariantName = name;
+            document.getElementById('previewThumb').style.background = color;
+            updateLivePreview();
+        }
+
+        function selectSize(element, sizeName) {
+            document.querySelectorAll('.size-pill').forEach(p => p.classList.remove('active'));
+            element.classList.add('active');
+            currentSize = sizeName;
+            updateLivePreview();
+        }
+
+        function updateLivePreview() {
+            const name = document.getElementById('vipProdName').value || 'Producto Botánico';
+            const price = Number(document.getElementById('vipProdPrice').value || 0).toLocaleString('es-AR');
+            document.getElementById('previewTitle').textContent = name;
+            document.getElementById('previewPrice').textContent = '$' + price;
+            document.getElementById('previewVariant').textContent = currentVariantName + ' • ' + currentSize;
+        }
+
+        function publicarProductoVip() {
+            confetti({
+                particleCount: 100,
+                spread: 70,
+                origin: { y: 0.6 },
+                colors: ['#ff5757', '#2563eb', '#10b981', '#8b5cf6', '#f59e0b']
+            });
+
+            const btn = document.getElementById('btnPublishRocket');
+            const originalContent = btn.innerHTML;
+            btn.innerHTML = '<span class="rocket-icon">✨</span><span>¡Publicado en Tienda!</span>';
+            btn.style.background = 'linear-gradient(135deg, #10b981 0%, #059669 100%)';
+
+            showToast('¡Producto Publicado con Éxito!', 'Ya está en el catálogo VIP de Aura Botanica.');
+
+            setTimeout(() => {
+                btn.innerHTML = originalContent;
+                btn.style.background = 'linear-gradient(135deg, #ff5757 0%, #ff6b6b 40%, #2563eb 100%)';
+            }, 2500);
+        }
+
+        function confirmarCompra() {
+            confetti({
+                particleCount: 60,
+                spread: 60,
+                origin: { y: 0.7 },
+                colors: ['#2563eb', '#009ee3', '#10b981']
+            });
+            showToast('¡Orden Creada Correctamente!', 'Redirigiendo a pasarela segura...');
+        }
+
+        function showToast(title, msg) {
+            const toast = document.getElementById('auraToast');
+            document.getElementById('toastTitle').textContent = title;
+            document.getElementById('toastMsg').textContent = msg;
+            toast.classList.add('show');
+            setTimeout(() => {
+                toast.classList.remove('show');
+            }, 3500);
+        }
+
+        function scrollToVipPanel() {
+            document.getElementById('vipPanelCard').scrollIntoView({ behavior: 'smooth' });
+        }
+    </script>
+</body>
+</html>

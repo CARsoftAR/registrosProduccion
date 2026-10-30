@@ -1,0 +1,350 @@
+{% extends 'base.html' %}
+{% load static %}
+
+{% block title %}Dashboard Ejecutivo de Producción | ABBAMAT{% endblock %}
+
+{% block content %}
+<div class="dashboard-header" style="margin-bottom: 20px; display: flex; justify-content: space-between; align-items: flex-start; flex-wrap: wrap; gap: 16px;">
+    <div>
+        <h1 style="font-size: 26px; font-weight: 700; color: var(--text-primary); margin-bottom: 6px;">
+            Dashboard Ejecutivo de Producción
+        </h1>
+        <p style="color: var(--text-secondary); font-size: 14px;">
+            Monitoreo analítico de la carga de datos en taller, cobertura de la jornada obligatoria (8,5 hs) y consolidación por rangos de fechas.
+        </p>
+    </div>
+
+    <div style="display: flex; gap: 10px;">
+        <a href="{% url 'control_produccion:control_produccion' %}?fecha_desde={{ fecha_desde_str }}&fecha_hasta={{ fecha_hasta_str }}" class="btn btn-primary">
+            <i class="bi bi-clock-history"></i>
+            <span>Ir a Control de Producción</span>
+        </a>
+    </div>
+</div>
+
+<!-- Banner Informativo del Intervalo Seleccionado -->
+<div class="period-status-banner" style="background: rgba(255, 255, 255, 0.85); backdrop-filter: blur(12px); -webkit-backdrop-filter: blur(12px); border: 1px solid var(--border-color); border-radius: var(--radius-md); padding: 14px 20px; margin-bottom: 24px; display: flex; align-items: center; justify-content: space-between; flex-wrap: wrap; gap: 16px; box-shadow: 0 4px 15px rgba(0,0,0,0.02);">
+    <div style="display: flex; align-items: center; gap: 14px;">
+        <div style="width: 42px; height: 42px; border-radius: var(--radius-sm); background: rgba(37, 99, 235, 0.1); color: #2563eb; display: flex; align-items: center; justify-content: center; font-size: 20px;">
+            <i class="bi bi-calendar3-range"></i>
+        </div>
+        <div>
+            <div style="font-size: 15px; font-weight: 700; color: var(--text-primary);">
+                Intervalo Auditado: <span style="color: #2563eb;">{{ resumen.fecha_formateada }}</span>
+            </div>
+            <div style="font-size: 12.5px; color: var(--text-secondary); margin-top: 2px;">
+                {% if resumen.es_mismo_dia %}
+                    Jornada diaria individual &bull; Base teórica: <strong>{{ resumen.jornada_teorica_hs }} hs</strong> por operario (1 día hábil)
+                {% else %}
+                    Acumulado de <strong>{{ resumen.dias_habiles }} días hábiles</strong> ({{ resumen.dias_totales }} días calendario) &bull; Meta teórica acumulada: <strong>{{ resumen.horas_teoricas_operario }} hs</strong> por operario (8,5 hs/día)
+                {% endif %}
+            </div>
+        </div>
+    </div>
+    
+    <div style="display: flex; align-items: center; gap: 10px;">
+        {% if operario_filtrado %}
+            <span class="badge badge-warning" style="font-size: 12.5px; padding: 7px 14px; background: rgba(245, 158, 11, 0.15); color: #b45309; border: 1px solid rgba(245, 158, 11, 0.3);">
+                <i class="bi bi-person-badge-fill"></i> Operario: <strong>[{{ operario_filtrado.id_concepto }}] {{ operario_filtrado.nombre }}</strong>
+            </span>
+            <a href="?fecha_desde={{ fecha_desde_str }}&fecha_hasta={{ fecha_hasta_str }}" class="badge badge-secondary" style="font-size: 12px; padding: 7px 12px; text-decoration: none; display: inline-flex; align-items: center; gap: 5px; background: rgba(100, 116, 139, 0.12); color: #475569;" title="Quitar filtro y ver todos los operarios">
+                <i class="bi bi-x-circle-fill"></i> Ver Todos
+            </a>
+        {% else %}
+            <span class="badge badge-info" style="font-size: 12.5px; padding: 7px 14px;">
+                <i class="bi bi-people-fill"></i> Nómina Activa: <strong>{{ resumen.total_nomina }} Operarios</strong>
+            </span>
+        {% endif %}
+    </div>
+</div>
+
+<!-- Tarjetas KPI Esenciales (Simplificadas sin redundancia) -->
+<div class="kpi-grid">
+    <!-- 1. Cobertura Global de Planta -->
+    <div class="kpi-card kpi-primary">
+        <div class="kpi-header">
+            <span class="kpi-title">Cobertura Global de Planta</span>
+            <div class="kpi-icon-wrap"><i class="bi bi-pie-chart-fill"></i></div>
+        </div>
+        <div class="kpi-value">{{ resumen.indice_cobertura_global }}%</div>
+        <div class="kpi-subtext">{{ resumen.horas_totales_registradas }} hs reales / {{ resumen.horas_totales_teoricas }} hs teóricas</div>
+        <div class="kpi-progress">
+            <div class="kpi-progress-bar" style="width: {% if resumen.indice_cobertura_global > 100 %}100{% else %}{{ resumen.indice_cobertura_global }}{% endif %}%; background-color: #3b82f6;"></div>
+        </div>
+    </div>
+
+    <!-- 2. Tasa de Carga / Adopción -->
+    <div class="kpi-card {% if resumen.tasa_adopcion_registro >= 80 %}kpi-success{% elif resumen.tasa_adopcion_registro >= 60 %}kpi-warning{% else %}kpi-danger{% endif %}">
+        <div class="kpi-header">
+            <span class="kpi-title">Tasa de Carga / Adopción</span>
+            <div class="kpi-icon-wrap"><i class="bi bi-person-check-fill"></i></div>
+        </div>
+        <div class="kpi-value">{{ resumen.tasa_adopcion_registro }}%</div>
+        <div class="kpi-subtext">
+            {% if resumen.operario_individual %}
+                {% if resumen.operarios_cumplen_adopcion > 0 %}
+                    Jornada cumplida: {{ resumen.horas_totales_registradas }} hs de {{ resumen.horas_totales_teoricas }} hs teóricas
+                {% else %}
+                    Carga insuficiente: {{ resumen.horas_totales_registradas }} hs de {{ resumen.horas_totales_teoricas }} hs teóricas
+                {% endif %}
+            {% else %}
+                <strong>{{ resumen.operarios_cumplen_adopcion }}</strong> de <strong>{{ resumen.total_nomina }}</strong> operarios alcanzaron jornada requerida (≥ 80%)
+            {% endif %}
+        </div>
+        <div class="kpi-progress">
+            <div class="kpi-progress-bar" style="width: {% if resumen.tasa_adopcion_registro > 100 %}100{% else %}{{ resumen.tasa_adopcion_registro }}{% endif %}%; background-color: {% if resumen.tasa_adopcion_registro >= 80 %}#10b981{% elif resumen.tasa_adopcion_registro >= 60 %}#f59e0b{% else %}#ef4444{% endif %};"></div>
+        </div>
+    </div>
+
+    <!-- 3. Rendimiento Técnico de Planta -->
+    <div class="kpi-card kpi-warning">
+        <div class="kpi-header">
+            <span class="kpi-title">Rendimiento Técnico Planta</span>
+            <div class="kpi-icon-wrap"><i class="bi bi-lightning-charge-fill"></i></div>
+        </div>
+        <div class="kpi-value">{{ resumen.rendimiento_tecnico_global }}%</div>
+        <div class="kpi-subtext">{{ resumen.horas_totales_estandar }} hs cotizadas vs {{ resumen.horas_totales_registradas }} hs reales</div>
+        <div class="kpi-progress">
+            <div class="kpi-progress-bar" style="width: {% if resumen.rendimiento_tecnico_global > 100 %}100{% else %}{{ resumen.rendimiento_tecnico_global }}{% endif %}%; background-color: #f59e0b;"></div>
+        </div>
+    </div>
+</div>
+
+<!-- Gráficos Interactivos (Chart.js) -->
+<div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(360px, 1fr)); gap: 24px; margin-bottom: 28px;">
+    <!-- Gráfico 1: Distribución del Cumplimiento de Operarios -->
+    <div class="card" style="margin-bottom: 0;">
+        <div class="card-header">
+            <div class="card-title">
+                <i class="bi bi-pie-chart-fill" style="color: #2563eb;"></i>
+                <span>Distribución de Cumplimiento (Nómina de {{ resumen.total_nomina }} Activos)</span>
+            </div>
+        </div>
+        <div class="card-body" style="height: 280px; display: flex; align-items: center; justify-content: center;">
+            <canvas id="chartCompliance"></canvas>
+        </div>
+    </div>
+
+    <!-- Gráfico 2: Carga Horaria por Máquina -->
+    <div class="card" style="margin-bottom: 0;">
+        <div class="card-header">
+            <div class="card-title">
+                <i class="bi bi-cpu-fill" style="color: #059669;"></i>
+                <span>Horas Acumuladas por Máquina (Top 8)</span>
+            </div>
+        </div>
+        <div class="card-body" style="height: 280px;">
+            <canvas id="chartMachines"></canvas>
+        </div>
+    </div>
+</div>
+
+<div style="display: grid; grid-template-columns: 2fr 1fr; gap: 24px;">
+    <!-- Ranking de Operarios por Cumplimiento (Nómina Activa Completa) -->
+    <div class="card">
+        <div class="card-header">
+            <div class="card-title">
+                <i class="bi bi-trophy-fill" style="color: #d97706;"></i>
+                <span>Ranking de Operarios por Tiempo Registrado</span>
+            </div>
+            <span class="badge badge-info" style="font-size: 11.5px; font-weight: 600;">
+                {% if operario_filtrado %}Operario Seleccionado{% else %}{{ ranking|length }} Operarios Activos{% endif %}
+            </span>
+        </div>
+        <div class="table-responsive">
+            <table class="custom-table">
+                <thead>
+                    <tr>
+                        <th>Operario</th>
+                        <th>Horas Reales</th>
+                        <th>Cumplimiento (%)</th>
+                        <th>Registros / Días</th>
+                        <th>Estado</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    {% for op in ranking %}
+                    <tr>
+                        <td>
+                            <div class="op-cell">
+                                <div class="op-avatar">{{ op.nombre|slice:":2"|upper }}</div>
+                                <div>
+                                    <div class="op-name">
+                                        <a href="{% url 'control_produccion:detalle_operario' op.id_concepto %}?fecha={{ fecha_hasta_str }}" 
+                                           style="color: var(--text-primary); text-decoration: none; font-weight: 600;">
+                                            {{ op.nombre }}
+                                        </a>
+                                    </div>
+                                    <div class="op-meta">Legajo: {{ op.id_concepto }}</div>
+                                </div>
+                            </div>
+                        </td>
+                        <td>
+                            <span style="font-weight: 700; color: var(--text-primary);">{{ op.horas_reales }} hs</span>
+                            {% if not resumen.es_mismo_dia %}
+                                <span style="font-size: 11px; color: var(--text-muted); display: block;">{{ op.promedio_diario_horas }} hs/día</span>
+                            {% endif %}
+                        </td>
+                        <td>
+                            <div style="display: flex; align-items: center; gap: 8px;">
+                                <span style="font-weight: 700; font-size: 13px;">{{ op.indice_cumplimiento }}%</span>
+                                <div class="progress-track" style="width: 70px;">
+                                    <div class="progress-fill {% if op.estado == 'CUMPLIDO' %}fill-success{% elif op.estado == 'PARCIAL' %}fill-warning{% elif op.estado == 'CRITICO' %}fill-orange{% else %}fill-danger{% endif %}"
+                                         style="width: {% if op.indice_cumplimiento > 100 %}100{% else %}{{ op.indice_cumplimiento }}{% endif %}%;"></div>
+                                </div>
+                            </div>
+                        </td>
+                        <td>
+                            <span style="font-weight: 600;">{{ op.cantidad_registros }}</span>
+                            {% if not resumen.es_mismo_dia %}
+                                <span style="font-size: 11px; color: var(--text-muted);">({{ op.dias_con_actividad }} días)</span>
+                            {% else %}
+                                <span style="font-size: 11px; color: var(--text-muted);">órdenes</span>
+                            {% endif %}
+                            {% if op.tiene_descanso %}
+                                <span title="Descanso de {{ op.minutos_descanso|floatformat:0 }} min registrado (excluido de órdenes productivas)" 
+                                      style="display: inline-flex; align-items: center; gap: 3px; font-size: 10.5px; color: #475569; background: rgba(100, 116, 139, 0.12); padding: 1px 6px; border-radius: 4px; margin-left: 4px; border: 1px solid rgba(203, 213, 225, 0.8);">
+                                    <i class="bi bi-cup-hot-fill" style="font-size: 10px; color: #64748b;"></i>
+                                    <span>{{ op.minutos_descanso|floatformat:0 }}m desc.</span>
+                                </span>
+                            {% endif %}
+                        </td>
+                        <td>
+                            <span class="badge {{ op.estado_badge_class }}">
+                                {{ op.estado_label }}
+                            </span>
+                        </td>
+                    </tr>
+                    {% empty %}
+                    <tr>
+                        <td colspan="5" style="text-align: center; color: var(--text-muted); padding: 30px;">
+                            Sin datos para el intervalo seleccionado.
+                        </td>
+                    </tr>
+                    {% endfor %}
+                </tbody>
+            </table>
+        </div>
+    </div>
+
+    <!-- Panel Lateral: Operarios con Omisiones o Baches Críticos -->
+    <div class="card">
+        <div class="card-header">
+            <div class="card-title" style="color: #dc2626;">
+                <i class="bi bi-bell-fill"></i>
+                <span>Omisiones en el Periodo</span>
+            </div>
+            <span class="badge badge-danger">{{ omisiones|length }}</span>
+        </div>
+        <div class="card-body" style="padding: 16px;">
+            {% if omisiones %}
+                <p style="font-size: 12.5px; color: var(--text-secondary); margin-bottom: 14px;">
+                    Operarios de la nómina activa de planta sin registros de producción en el intervalo:
+                </p>
+                <div style="display: flex; flex-direction: column; gap: 10px;">
+                    {% for op in omisiones %}
+                    <div style="background-color: rgba(254, 242, 242, 0.7); border: 1px solid #fecaca; border-radius: var(--radius-sm); padding: 12px; display: flex; align-items: center; justify-content: space-between;">
+                        <div>
+                            <div style="font-weight: 600; font-size: 13.5px; color: var(--text-primary);">{{ op.nombre }}</div>
+                            <div style="font-size: 11px; color: #b91c1c; font-weight: 500;">Legajo: {{ op.id_concepto }} &bull; 0 hs cargadas</div>
+                        </div>
+                        <a href="{% url 'control_produccion:detalle_operario' op.id_concepto %}?fecha={{ fecha_hasta_str }}" 
+                           class="btn btn-secondary btn-sm" style="padding: 4px 8px; font-size: 11px;">
+                            Auditar
+                        </a>
+                    </div>
+                    {% endfor %}
+                </div>
+            {% else %}
+                <div style="text-align: center; padding: 40px 10px; color: var(--color-success);">
+                    <i class="bi bi-shield-check" style="font-size: 42px; display: block; margin-bottom: 8px;"></i>
+                    <div style="font-weight: 700; font-size: 15px;">¡Excelente Cobertura!</div>
+                    <div style="font-size: 12px; color: var(--text-secondary); margin-top: 4px;">
+                        {% if operario_filtrado %}
+                            El operario [{{ operario_filtrado.id_concepto }}] {{ operario_filtrado.nombre }} registró actividad con éxito en este intervalo.
+                        {% else %}
+                            Todos los {{ resumen.total_nomina }} operarios activos de la nómina registraron producción en este intervalo.
+                        {% endif %}
+                    </div>
+                </div>
+            {% endif %}
+        </div>
+    </div>
+</div>
+{% endblock %}
+
+{% block extra_js %}
+<script>
+document.addEventListener('DOMContentLoaded', function () {
+    // 1. Gráfico Doughnut de Cumplimiento
+    const ctxComp = document.getElementById('chartCompliance');
+    if (ctxComp) {
+        new Chart(ctxComp, {
+            type: 'doughnut',
+            data: {
+                labels: ['Cumplidos (≥95%)', 'Parciales (60-94%)', 'Críticos (<60%)', 'Omisión Total (0%)'],
+                datasets: [{
+                    data: [
+                        {{ resumen.operarios_cumplidos }},
+                        {{ resumen.operarios_parciales }},
+                        {{ resumen.operarios_criticos }},
+                        {{ resumen.operarios_omision_total }}
+                    ],
+                    backgroundColor: ['#10b981', '#f59e0b', '#f97316', '#ef4444'],
+                    borderColor: '#ffffff',
+                    borderWidth: 3
+                }]
+            },
+            options: {
+                responsive: true,
+                maintainAspectRatio: false,
+                plugins: {
+                    legend: {
+                        position: 'bottom',
+                        labels: { color: '#475569', font: { family: 'Inter', size: 12, weight: 600 } }
+                    }
+                },
+                cutout: '68%'
+            }
+        });
+    }
+
+    // 2. Gráfico de Horas por Máquina
+    const ctxMac = document.getElementById('chartMachines');
+    if (ctxMac) {
+        const macLabels = [{% for m in resumen.maquinas_top %}'{{ m.maquina|escapejs }}',{% endfor %}];
+        const macValues = [{% for m in resumen.maquinas_top %}{{ m.horas }},{% endfor %}];
+
+        new Chart(ctxMac, {
+            type: 'bar',
+            data: {
+                labels: macLabels.length ? macLabels : ['Sin registros'],
+                datasets: [{
+                    label: 'Horas Reales',
+                    data: macValues.length ? macValues : [0],
+                    backgroundColor: '#2563eb',
+                    borderRadius: 6
+                }]
+            },
+            options: {
+                responsive: true,
+                maintainAspectRatio: false,
+                plugins: {
+                    legend: { display: false }
+                },
+                scales: {
+                    x: {
+                        ticks: { color: '#475569', font: { family: 'Inter', size: 11, weight: 500 } },
+                        grid: { display: false }
+                    },
+                    y: {
+                        ticks: { color: '#475569', font: { family: 'Inter', size: 11 } },
+                        grid: { color: 'rgba(0, 0, 0, 0.05)' }
+                    }
+                }
+            }
+        });
+    }
+});
+</script>
+{% endblock %}
