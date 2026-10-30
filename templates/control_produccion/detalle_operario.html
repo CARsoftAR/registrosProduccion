@@ -77,20 +77,32 @@
     <div class="card-header">
         <div class="card-title">
             <i class="bi bi-clock-history" style="color: #2563eb;"></i>
-            <span>Línea de Tiempo Operativa de la Jornada (06:30 a 17:30)</span>
+            <span>Línea de Tiempo Operativa de la Jornada ({% if operario.timeline_escala %}{{ operario.timeline_escala.inicio_str }} a {{ operario.timeline_escala.fin_str }}{% else %}{{ operario.primer_registro|default:'07:00' }} a {{ operario.ultimo_registro|default:'16:00' }}{% endif %})</span>
         </div>
         <div style="font-size: 12px; color: var(--text-muted);">
             Primer registro: <strong style="color: var(--text-primary);">{{ operario.primer_registro }}</strong> &bull; Último registro: <strong style="color: var(--text-primary);">{{ operario.ultimo_registro }}</strong>
         </div>
     </div>
     <div class="card-body">
-        <div class="timeline-gantt-track" style="height: 38px;">
+        <div class="timeline-gantt-track" style="height: 38px; position: relative;">
+            <!-- Guías verticales dinámicas según escala horaria real -->
+            {% for tick in operario.timeline_escala.ticks %}
+                <div class="gantt-guideline" style="left: {{ tick.left_pct }}%;" title="{{ tick.hora }}"></div>
+            {% endfor %}
+
             {% for bloque in operario.timeline_bloques %}
                 {% if bloque.tipo == 'TAREA' %}
                     <div class="timeline-segment" 
                          style="left: {{ bloque.left_pct }}%; width: {{ bloque.width_pct }}%; background-color: {{ bloque.color }};"
                          data-title="{{ bloque.titulo }}"
                          data-desc="Máquina: {{ bloque.maquina }} ({{ bloque.duracion_min }} min)"
+                         data-time="{{ bloque.hora_inicio }} a {{ bloque.hora_fin }}">
+                    </div>
+                {% elif bloque.tipo == 'DESCANSO' %}
+                    <div class="timeline-segment" 
+                         style="left: {{ bloque.left_pct }}%; width: {{ bloque.width_pct }}%; background-color: {{ bloque.color }};"
+                         data-title="{{ bloque.titulo }}"
+                         data-desc="Pausa / Descanso registrado (No productivo)"
                          data-time="{{ bloque.hora_inicio }} a {{ bloque.hora_fin }}">
                     </div>
                 {% else %}
@@ -104,19 +116,12 @@
             {% endfor %}
         </div>
 
-        <div class="timeline-scale-ticks">
-            <span>06:30</span>
-            <span>07:30</span>
-            <span>08:30</span>
-            <span>09:30</span>
-            <span>10:30</span>
-            <span>11:30</span>
-            <span>12:30</span>
-            <span>13:30</span>
-            <span>14:30</span>
-            <span>15:30</span>
-            <span>16:30</span>
-            <span>17:30</span>
+        <div class="timeline-scale-ticks" style="position: relative; height: 18px;">
+            {% for tick in operario.timeline_escala.ticks %}
+                <span style="left: {{ tick.left_pct }}%; position: absolute; transform: translateX({% if forloop.first %}0%{% elif forloop.last %}-100%{% else %}-50%{% endif %}); white-space: nowrap;">
+                    {{ tick.hora }}
+                </span>
+            {% endfor %}
         </div>
 
         <!-- Leyenda -->

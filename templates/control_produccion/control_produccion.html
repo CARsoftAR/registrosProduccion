@@ -493,26 +493,18 @@
                                 </div>
                             </div>
 
-                            <!-- LÍNEA DE TIEMPO HORIZONTAL GANTT (06:30 A 17:30) -->
+                            <!-- LÍNEA DE TIEMPO HORIZONTAL GANTT PROPORCIONAL DINÁMICA -->
                             <div class="accordion-gantt-wrapper">
                                 <div class="gantt-header-label">
                                     <i class="bi bi-distribute-horizontal" style="color: #2563eb;"></i>
-                                    <span>Línea de Tiempo Visual de la Jornada (06:30 a 17:30)</span>
+                                    <span>Línea de Tiempo Visual de la Jornada ({% if op.timeline_escala %}{{ op.timeline_escala.inicio_str }} a {{ op.timeline_escala.fin_str }}{% else %}{{ op.primer_registro|default:'07:00' }} a {{ op.ultimo_registro|default:'16:00' }}{% endif %})</span>
                                 </div>
 
                                 <div class="accordion-gantt-track">
-                                    <!-- Guías verticales por cada hora completa (06:30 a 17:30 = 660 min) -->
-                                    <div class="gantt-guideline" style="left: 4.54%;" title="07:00"></div>
-                                    <div class="gantt-guideline" style="left: 13.63%;" title="08:00"></div>
-                                    <div class="gantt-guideline" style="left: 22.72%;" title="09:00"></div>
-                                    <div class="gantt-guideline" style="left: 31.81%;" title="10:00"></div>
-                                    <div class="gantt-guideline" style="left: 40.90%;" title="11:00"></div>
-                                    <div class="gantt-guideline" style="left: 50.00%;" title="12:00"></div>
-                                    <div class="gantt-guideline" style="left: 59.09%;" title="13:00"></div>
-                                    <div class="gantt-guideline" style="left: 68.18%;" title="14:00"></div>
-                                    <div class="gantt-guideline" style="left: 77.27%;" title="15:00"></div>
-                                    <div class="gantt-guideline" style="left: 86.36%;" title="16:00"></div>
-                                    <div class="gantt-guideline" style="left: 95.45%;" title="17:00"></div>
+                                    <!-- Guías verticales dinámicas coincidentes con las horas reales del operario -->
+                                    {% for tick in op.timeline_escala.ticks %}
+                                        <div class="gantt-guideline" style="left: {{ tick.left_pct }}%;" title="{{ tick.hora }}"></div>
+                                    {% endfor %}
 
                                     <!-- Render de bloques de procesos, descansos y baches -->
                                     {% if op.estado == 'SIN_REGISTRO' or not op.timeline_bloques %}
@@ -553,21 +545,13 @@
                                     {% endif %}
                                 </div>
 
-                                <!-- Escala horaria inferior -->
-                                <div class="accordion-scale-ticks">
-                                    <span>06:30</span>
-                                    <span>07:00</span>
-                                    <span>08:00</span>
-                                    <span>09:00</span>
-                                    <span>10:00</span>
-                                    <span>11:00</span>
-                                    <span>12:00</span>
-                                    <span>13:00</span>
-                                    <span>14:00</span>
-                                    <span>15:00</span>
-                                    <span>16:00</span>
-                                    <span>17:00</span>
-                                    <span>17:30</span>
+                                <!-- Escala horaria inferior dinámica según horas reales -->
+                                <div class="accordion-scale-ticks" style="position: relative; height: 18px;">
+                                    {% for tick in op.timeline_escala.ticks %}
+                                        <span style="left: {{ tick.left_pct }}%; position: absolute; transform: translateX({% if forloop.first %}0%{% elif forloop.last %}-100%{% else %}-50%{% endif %}); white-space: nowrap;">
+                                            {{ tick.hora }}
+                                        </span>
+                                    {% endfor %}
                                 </div>
                             </div>
 

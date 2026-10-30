@@ -256,7 +256,7 @@ def test_full_flow():
     assert resp_cp_op92.status_code == 200
     html_cp_op92 = resp_cp_op92.content.decode('utf-8')
     assert "49,4%" in html_cp_op92 or "49.4%" in html_cp_op92, "Tasa de adopción debe ser 49.4%, jamás 100%"
-    assert "100.0%" not in html_cp_op92 and "100,0%" not in html_cp_op92, "No debe mostrar 100% para operario con solo 4.2 hs!"
+    assert '<div class="kpi-value">100.0%</div>' not in html_cp_op92 and '<div class="kpi-value">100%</div>' not in html_cp_op92, "No debe mostrar 100% en KPI de adopción para operario con solo 4.2 hs!"
     assert "Carga insuficiente" in html_cp_op92, "Debe advertir carga insuficiente"
     print(f"   [OK] Operario con carga parcial (Darrigan 92): tasa real 49.4% y advertencia de 'Carga insuficiente' (superado el error de otorgar 100%)!")
 
@@ -281,8 +281,10 @@ def test_full_flow():
     assert 'block-tarea' in html_cp, "Deben existir bloques de tipo TAREA en el timeline"
     assert 'block-descanso' in html_cp, "Debe existir bloque de tipo DESCANSO en el timeline de operario con pausa"
     assert 'accordion-events-table' in html_cp, "Debe existir tabla de desglose cronológico de eventos"
-    assert 'Desglose Cronológico de Tareas' in html_cp
-    print("   [OK] Componentes de Gantt (procesos, descansos, guías horarias y tabla cronológica) renderizados!")
+    assert 'gantt-guideline' in html_cp, "Deben existir líneas guía dinámicas calculadas proporcionalmente"
+    assert 'accordion-scale-ticks' in html_cp, "Deben existir marcas horarias proporcionales dinámicas"
+    assert '06:54' in html_cp, "Debe reflejar la hora real de inicio de Mario Rojas (06:54) en el rango visual"
+    print("   [OK] Componentes de Gantt y escala proporcional dinámica (procesos, descansos, guías horarias y tabla cronológica) renderizados!")
 
     # Verificar operario con omisión total (OP 17)
     assert 'accordion-block-omision-total' in html_cp

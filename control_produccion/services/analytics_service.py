@@ -115,40 +115,94 @@ def es_registro_descanso(reg):
     return False
 
 
+def _to_minutes(val):
+    """Convierte objeto datetime, time o string HH:MM a minutos transcurridos desde medianoche."""
+    if val is None:
+        return None
+    if isinstance(val, (datetime.datetime, datetime.time)):
+        return val.hour * 60 + val.minute
+    if isinstance(val, str):
+        try:
+            parts = val.strip().split(':')
+            return int(parts[0]) * 60 + int(parts[1])
+        except Exception:
+            return None
+    return None
+
+
+def _format_mins(m):
+    """Formatea minutos desde medianoche a string HH:MM."""
+    return f"{int(m) // 60:02d}:{int(m) % 60:02d}"
+
+
 def calcular_timeline_visual(registros, baches, fecha, hora_inicio_taller=HORA_INICIO_TURNO, hora_fin_taller=HORA_FIN_TURNO):
     """
-    Construye los bloques porcentuales para la barra de línea de tiempo visual (Gantt diario).
-    Ventana de referencia visual: de 06:00 a 17:30 (690 minutos).
+    Construye los bloques y la escala de la línea de tiempo visual (Gantt diario).
+    El rango total toma estrictamente la hora de inicio del primer registro y la hora de fin del
+    último registro (o el horario general de la jornada / baches), calculando de forma proporcional
+    la ubicación (left) y duración (width) de cada bloque (Procesos, Descansos y Baches).
     """
-    try:
-        h_ini_dt = datetime.datetime.strptime(hora_inicio_taller, "%H:%M").time()
-    except Exception:
-        h_ini_dt = datetime.time(7, 0)
+    # 1. Obtener registros válidos cronológicamente
+    valid_regs = [
+        r for r in registros 
+        if _to_minutes(r.get('hora_inicio')) is not None and _to_minutes(r.get('hora_fin')) is not None
+    ]
+    valid_regs.sort(key=lambda r: _to_minutes(r.get('hora_inicio')))
 
-    # Punto base visual: 06:30 (para dar aire a los que entran temprano)
-    base_minutos = 6 * 60 + 30  # 390 min desde medianoche
-    total_minutos_escala = 11 * 60  # 660 min (hasta las 17:30)
+    # 2. Recolectar minutos de inicio y fin reales de tareas y descansos
+    all_starts = []
+    all_ends = []
+
+    for r in valid_regs:
+        m_ini = _to_minutes(r.get('hora_inicio'))
+        m_fin = _to_minutes(r.get('hora_fin'))
+        if m_ini is not None and m_fin is not None:
+            all_starts.append(m_ini)
+            all_ends.append(m_fin)
+
+    # 3. Recolectar minutos de baches reales
+    for b in baches:
+        b_ini = _to_minutes(b.get('dt_inicio')) or _to_minutes(b.get('inicio'))
+        b_fin = _to_minutes(b.get('dt_fin')) or _to_minutes(b.get('fin'))
+        dur = b.get('duracion_minutos', 0)
+        if b_ini is not None and b_fin is not None and dur > 0:
+            all_starts.append(b_ini)
+            all_ends.append(b_fin)
+
+    # Horario general de turno de respaldo
+    shift_ini_mins = _to_minutes(hora_inicio_taller) or (7 * 60)
+    shift_fin_mins = _to_minutes(hora_fin_taller) or (16 * 60)
+
+    # 4. Determinar el rango estricto de la línea de tiempo:
+    if all_starts and all_ends:
+        min_start = min(all_starts)
+        max_end = max(all_ends)
+    elif valid_regs:
+        min_start = _to_minutes(valid_regs[0]['hora_inicio'])
+        max_end = _to_minutes(valid_regs[-1]['hora_fin'])
+    else:
+        min_start = shift_ini_mins
+        max_end = shift_fin_mins
+
+    # Garantizar rango positivo
+    if max_end <= min_start:
+        max_end = min_start + 60
+
+    total_minutos_escala = max(max_end - min_start, 1)
 
     bloques = []
-
-    # Bloques de tareas trabajadas y descansos
     colores_paleta = [
         '#3b82f6', '#06b6d4', '#10b981', '#6366f1', 
         '#8b5cf6', '#ec4899', '#14b8a6', '#f59e0b'
     ]
 
-    for idx, reg in enumerate(registros):
-        h_ini = reg.get('hora_inicio')
-        h_fin = reg.get('hora_fin')
-        if not h_ini or not h_fin:
-            continue
-
-        mins_ini = h_ini.hour * 60 + h_ini.minute
-        mins_fin = h_fin.hour * 60 + h_fin.minute
+    for idx, reg in enumerate(valid_regs):
+        mins_ini = _to_minutes(reg.get('hora_inicio'))
+        mins_fin = _to_minutes(reg.get('hora_fin'))
         dur = max(mins_fin - mins_ini, 1)
 
-        left_pct = max(0.0, min(100.0, ((mins_ini - base_minutos) / total_minutos_escala) * 100))
-        width_pct = max(0.8, min(100.0 - left_pct, (dur / total_minutos_escala) * 100))
+        left_pct = max(0.0, min(100.0, ((mins_ini - min_start) / total_minutos_escala) * 100.0))
+        width_pct = max(0.4, min(100.0 - left_pct, (dur / total_minutos_escala) * 100.0))
 
         es_desc = es_registro_descanso(reg)
         if es_desc:
@@ -170,8 +224,8 @@ def calcular_timeline_visual(registros, baches, fecha, hora_inicio_taller=HORA_I
             'articulo_desc': reg.get('articulo_desc') or reg.get('operacion', ''),
             'operacion': reg.get('operacion', ''),
             'maquina': reg.get('maquina', 'Sin Máquina'),
-            'hora_inicio': reg.get('hora_inicio_str', ''),
-            'hora_fin': reg.get('hora_fin_str', ''),
+            'hora_inicio': reg.get('hora_inicio_str', _format_mins(mins_ini)),
+            'hora_fin': reg.get('hora_fin_str', _format_mins(mins_fin)),
             'duracion_min': round(dur, 1),
             'duracion_hs': round(dur / 60.0, 2),
             'cantidad_producida': reg.get('cantidad_producida', 0),
@@ -181,28 +235,25 @@ def calcular_timeline_visual(registros, baches, fecha, hora_inicio_taller=HORA_I
             'es_descanso': es_desc,
         })
 
-    # Bloques de baches / omisiones
     for b in baches:
-        b_ini = b.get('dt_inicio')
-        b_fin = b.get('dt_fin')
+        b_ini = _to_minutes(b.get('dt_inicio')) or _to_minutes(b.get('inicio'))
+        b_fin = _to_minutes(b.get('dt_fin')) or _to_minutes(b.get('fin'))
         dur = b.get('duracion_minutos', 0)
-        if b_ini and b_fin and dur > 0:
-            mins_ini = b_ini.hour * 60 + b_ini.minute
-            mins_fin = b_fin.hour * 60 + b_fin.minute
-            left_pct = max(0.0, min(100.0, ((mins_ini - base_minutos) / total_minutos_escala) * 100))
-            width_pct = max(0.8, min(100.0 - left_pct, (dur / total_minutos_escala) * 100))
+        if b_ini is not None and b_fin is not None and dur > 0:
+            left_pct = max(0.0, min(100.0, ((b_ini - min_start) / total_minutos_escala) * 100.0))
+            width_pct = max(0.4, min(100.0 - left_pct, (dur / total_minutos_escala) * 100.0))
 
             es_omision_total = b.get('tipo') == 'OMISION_TOTAL'
             bloques.append({
                 'tipo': 'BACHE',
-                'titulo': f"Bache inactivo: {int(dur)} min ({b.get('inicio')} - {b.get('fin')})",
+                'titulo': f"Bache inactivo: {int(dur)} min ({b.get('inicio', _format_mins(b_ini))} - {b.get('fin', _format_mins(b_fin))})",
                 'id_orden': '--',
                 'articulo': '',
                 'articulo_desc': b.get('descripcion', 'Bache sin actividad registrada'),
                 'operacion': 'Bache / Inactividad',
                 'maquina': 'Sin máquina',
-                'hora_inicio': b.get('inicio', ''),
-                'hora_fin': b.get('fin', ''),
+                'hora_inicio': b.get('inicio', _format_mins(b_ini)),
+                'hora_fin': b.get('fin', _format_mins(b_fin)),
                 'duracion_min': round(dur, 1),
                 'duracion_hs': round(dur / 60.0, 2),
                 'cantidad_producida': 0,
@@ -213,9 +264,50 @@ def calcular_timeline_visual(registros, baches, fecha, hora_inicio_taller=HORA_I
                 'es_omision': es_omision_total,
             })
 
-    # Ordenar cronológicamente los bloques de toda la jornada
     bloques.sort(key=lambda b: (b.get('left_pct', 0), b.get('hora_inicio', '')))
-    return bloques
+
+    # 5. Generar escala dinámica de ticks que refleje las horas reales del operario
+    ticks = []
+    # Primer tick
+    ticks.append({
+        'hora': _format_mins(min_start),
+        'left_pct': 0.0,
+        'tipo': 'extremo',
+    })
+
+    # Ticks intermedios en cada hora en punto (07:00, 08:00, etc.)
+    h_ini = (min_start // 60) + 1
+    h_fin = max_end // 60
+    for h in range(h_ini, h_fin + 1):
+        m_h = h * 60
+        if m_h >= max_end:
+            break
+        pct = ((m_h - min_start) / total_minutos_escala) * 100.0
+        # Evitar superposición visual si está pegado a los extremos (< 5% o > 95%)
+        if 5.0 <= pct <= 95.0:
+            ticks.append({
+                'hora': f"{h:02d}:00",
+                'left_pct': round(pct, 2),
+                'tipo': 'hora',
+            })
+
+    # Último tick
+    ticks.append({
+        'hora': _format_mins(max_end),
+        'left_pct': 100.0,
+        'tipo': 'extremo',
+    })
+
+    timeline_escala = {
+        'inicio_str': _format_mins(min_start),
+        'fin_str': _format_mins(max_end),
+        'min_start': min_start,
+        'max_end': max_end,
+        'total_minutos': total_minutos_escala,
+        'ticks': ticks,
+    }
+
+    return bloques, timeline_escala
 
 
 def detectar_baches_operario(registros, fecha, hora_inicio_str="07:00", hora_fin_str="16:30", tolerancia_min=15):
@@ -461,7 +553,7 @@ def auditar_jornada_produccion(fecha_input=None):
             badge_icon = 'bi-exclamation-octagon-fill'
 
         # Construcción de timeline visual para la vista
-        timeline_bloques = calcular_timeline_visual(
+        timeline_bloques, timeline_escala = calcular_timeline_visual(
             regs, 
             baches, 
             fecha, 
@@ -511,6 +603,7 @@ def auditar_jornada_produccion(fecha_input=None):
             'minutos_en_baches': round(mins_en_baches, 1),
             'horas_en_baches': round(mins_en_baches / 60.0, 2),
             'timeline_bloques': timeline_bloques,
+            'timeline_escala': timeline_escala,
             'registros': regs,
             'registros_productivos': regs_productivos,
             'registros_descanso': regs_descanso,
@@ -799,9 +892,20 @@ def auditar_periodo_produccion(fecha_desde_input=None, fecha_hasta_input=None):
             operaciones_realizadas[op_nombre] = operaciones_realizadas.get(op_nombre, 0.0) + r.get('tiempo_minutos', 0.0)
 
         timeline_bloques = []
+        timeline_escala = {
+            'inicio_str': HORA_INICIO_TURNO,
+            'fin_str': HORA_FIN_TURNO,
+            'min_start': 7 * 60,
+            'max_end': 16 * 60,
+            'total_minutos': 540,
+            'ticks': [
+                {'hora': HORA_INICIO_TURNO, 'left_pct': 0.0, 'tipo': 'extremo'},
+                {'hora': HORA_FIN_TURNO, 'left_pct': 100.0, 'tipo': 'extremo'},
+            ],
+        }
         timelines_por_dia = []
         if fecha_desde == fecha_hasta and regs:
-            timeline_bloques = calcular_timeline_visual(
+            timeline_bloques, timeline_escala = calcular_timeline_visual(
                 regs,
                 baches_totales_op,
                 fecha_desde,
@@ -839,7 +943,7 @@ def auditar_periodo_produccion(fecha_desde_input=None, fecha_hasta_input=None):
                 baches_por_dia.setdefault(f_b, []).append(b)
 
             for f_d in sorted(regs_por_dia.keys(), reverse=True):
-                bloques_dia = calcular_timeline_visual(
+                bloques_dia, escala_dia = calcular_timeline_visual(
                     regs_por_dia[f_d],
                     baches_por_dia.get(f_d, []),
                     f_d,
@@ -850,11 +954,13 @@ def auditar_periodo_produccion(fecha_desde_input=None, fecha_hasta_input=None):
                     'fecha': f_d,
                     'fecha_str': f_d.strftime('%d/%m/%Y'),
                     'bloques': bloques_dia,
+                    'escala': escala_dia,
                     'total_horas': round(sum(r.get('tiempo_minutos', 0) for r in regs_por_dia[f_d] if not es_registro_descanso(r)) / 60.0, 2),
                     'cant_tareas': sum(1 for r in regs_por_dia[f_d] if not es_registro_descanso(r)),
                 })
             if timelines_por_dia:
                 timeline_bloques = timelines_por_dia[0]['bloques']
+                timeline_escala = timelines_por_dia[0].get('escala', timeline_escala)
 
         promedio_diario_op = round(horas_reales / dias_habiles, 2) if dias_habiles > 0 else 0.0
 
@@ -894,6 +1000,7 @@ def auditar_periodo_produccion(fecha_desde_input=None, fecha_hasta_input=None):
             'minutos_en_baches': round(mins_en_baches, 1),
             'horas_en_baches': round(mins_en_baches / 60.0, 2),
             'timeline_bloques': timeline_bloques,
+            'timeline_escala': timeline_escala,
             'timelines_por_dia': timelines_por_dia,
             'registros': regs,
             'registros_productivos': regs_productivos,
