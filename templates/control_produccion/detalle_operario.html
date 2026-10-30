@@ -118,7 +118,7 @@
 
         <div class="timeline-scale-ticks">
             {% for tick in operario.timeline_escala.ticks %}
-                <span>{{ tick.hora }}</span>
+                <span class="scale-tick" style="left: {{ tick.left_pct }}%;">{{ tick.hora }}</span>
             {% endfor %}
         </div>
 

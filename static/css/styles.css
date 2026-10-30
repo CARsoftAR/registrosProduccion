@@ -1403,17 +1403,17 @@ h1, h2, h3, h4, h5, h6 {
 
 .accordion-scale-ticks,
 .timeline-scale-ticks {
-    display: flex;
-    justify-content: space-between;
-    align-items: center;
+    position: relative;
+    height: 18px;
     width: 100%;
     margin-top: 6px;
-    padding: 0 1px;
     box-sizing: border-box;
 }
 
-.accordion-scale-ticks span,
-.timeline-scale-ticks span {
+.accordion-scale-ticks .scale-tick,
+.timeline-scale-ticks .scale-tick {
+    position: absolute;
+    transform: translateX(-50%);
     font-size: 11px;
     font-weight: 600;
     color: var(--text-muted);
@@ -1421,17 +1421,16 @@ h1, h2, h3, h4, h5, h6 {
     white-space: nowrap;
     user-select: none;
     line-height: 1;
-    display: inline-block;
 }
 
-.accordion-scale-ticks span:first-child,
-.timeline-scale-ticks span:first-child {
-    text-align: left;
+.accordion-scale-ticks .scale-tick:first-child,
+.timeline-scale-ticks .scale-tick:first-child {
+    transform: translateX(0);
 }
 
-.accordion-scale-ticks span:last-child,
-.timeline-scale-ticks span:last-child {
-    text-align: right;
+.accordion-scale-ticks .scale-tick:last-child,
+.timeline-scale-ticks .scale-tick:last-child {
+    transform: translateX(-100%);
 }
 
 .accordion-legend {

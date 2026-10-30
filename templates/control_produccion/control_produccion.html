@@ -545,10 +545,10 @@
                                     {% endif %}
                                 </div>
 
-                                <!-- Escala horaria inferior distribuida equitativamente cada una hora -->
+                                <!-- Escala horaria inferior proporcional según rango real del operario -->
                                 <div class="accordion-scale-ticks">
                                     {% for tick in op.timeline_escala.ticks %}
-                                        <span>{{ tick.hora }}</span>
+                                        <span class="scale-tick" style="left: {{ tick.left_pct }}%;">{{ tick.hora }}</span>
                                     {% endfor %}
                                 </div>
                             </div>
