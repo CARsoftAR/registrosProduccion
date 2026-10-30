@@ -545,12 +545,10 @@
                                     {% endif %}
                                 </div>
 
-                                <!-- Escala horaria inferior dinámica según horas reales -->
-                                <div class="accordion-scale-ticks" style="position: relative; height: 18px;">
+                                <!-- Escala horaria inferior distribuida equitativamente cada una hora -->
+                                <div class="accordion-scale-ticks">
                                     {% for tick in op.timeline_escala.ticks %}
-                                        <span style="left: {{ tick.left_pct }}%; position: absolute; transform: translateX({% if forloop.first %}0%{% elif forloop.last %}-100%{% else %}-50%{% endif %}); white-space: nowrap;">
-                                            {{ tick.hora }}
-                                        </span>
+                                        <span>{{ tick.hora }}</span>
                                     {% endfor %}
                                 </div>
                             </div>

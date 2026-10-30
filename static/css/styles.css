@@ -1403,13 +1403,35 @@ h1, h2, h3, h4, h5, h6 {
 
 .accordion-scale-ticks,
 .timeline-scale-ticks {
-    position: relative;
-    height: 18px;
-    font-size: 10.5px;
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    width: 100%;
+    margin-top: 6px;
+    padding: 0 1px;
+    box-sizing: border-box;
+}
+
+.accordion-scale-ticks span,
+.timeline-scale-ticks span {
+    font-size: 11px;
     font-weight: 600;
     color: var(--text-muted);
-    padding: 4px 0 0;
-    margin-top: 4px;
+    font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, "Liberation Mono", "Courier New", monospace;
+    white-space: nowrap;
+    user-select: none;
+    line-height: 1;
+    display: inline-block;
+}
+
+.accordion-scale-ticks span:first-child,
+.timeline-scale-ticks span:first-child {
+    text-align: left;
+}
+
+.accordion-scale-ticks span:last-child,
+.timeline-scale-ticks span:last-child {
+    text-align: right;
 }
 
 .accordion-legend {

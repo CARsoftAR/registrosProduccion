@@ -116,11 +116,9 @@
             {% endfor %}
         </div>
 
-        <div class="timeline-scale-ticks" style="position: relative; height: 18px;">
+        <div class="timeline-scale-ticks">
             {% for tick in operario.timeline_escala.ticks %}
-                <span style="left: {{ tick.left_pct }}%; position: absolute; transform: translateX({% if forloop.first %}0%{% elif forloop.last %}-100%{% else %}-50%{% endif %}); white-space: nowrap;">
-                    {{ tick.hora }}
-                </span>
+                <span>{{ tick.hora }}</span>
             {% endfor %}
         </div>
 

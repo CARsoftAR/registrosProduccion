@@ -173,22 +173,24 @@ def calcular_timeline_visual(registros, baches, fecha, hora_inicio_taller=HORA_I
     shift_ini_mins = _to_minutes(hora_inicio_taller) or (7 * 60)
     shift_fin_mins = _to_minutes(hora_fin_taller) or (16 * 60)
 
-    # 4. Determinar el rango estricto de la línea de tiempo:
-    if all_starts and all_ends:
-        min_start = min(all_starts)
-        max_end = max(all_ends)
-    elif valid_regs:
-        min_start = _to_minutes(valid_regs[0]['hora_inicio'])
-        max_end = _to_minutes(valid_regs[-1]['hora_fin'])
-    else:
-        min_start = shift_ini_mins
-        max_end = shift_fin_mins
+    # 4. Determinar el rango horario de la jornada en horas enteras exactas:
+    # Base estándar de jornada: 06:00 (para abarcar operarios que ingresan a las 06:02 o 06:54) a 17:00
+    min_h = 6
+    max_h = 17
 
-    # Garantizar rango positivo
-    if max_end <= min_start:
-        max_end = min_start + 60
+    if all_starts:
+        earliest_h = min(all_starts) // 60
+        if earliest_h < min_h:
+            min_h = max(0, earliest_h)
 
-    total_minutos_escala = max(max_end - min_start, 1)
+    if all_ends:
+        latest_h = (max(all_ends) + 59) // 60
+        if latest_h > max_h:
+            max_h = min(24, latest_h)
+
+    min_start_scale = min_h * 60
+    max_end_scale = max_h * 60
+    total_minutos_escala = max(max_end_scale - min_start_scale, 60)
 
     bloques = []
     colores_paleta = [
@@ -201,7 +203,7 @@ def calcular_timeline_visual(registros, baches, fecha, hora_inicio_taller=HORA_I
         mins_fin = _to_minutes(reg.get('hora_fin'))
         dur = max(mins_fin - mins_ini, 1)
 
-        left_pct = max(0.0, min(100.0, ((mins_ini - min_start) / total_minutos_escala) * 100.0))
+        left_pct = max(0.0, min(100.0, ((mins_ini - min_start_scale) / total_minutos_escala) * 100.0))
         width_pct = max(0.4, min(100.0 - left_pct, (dur / total_minutos_escala) * 100.0))
 
         es_desc = es_registro_descanso(reg)
@@ -240,7 +242,7 @@ def calcular_timeline_visual(registros, baches, fecha, hora_inicio_taller=HORA_I
         b_fin = _to_minutes(b.get('dt_fin')) or _to_minutes(b.get('fin'))
         dur = b.get('duracion_minutos', 0)
         if b_ini is not None and b_fin is not None and dur > 0:
-            left_pct = max(0.0, min(100.0, ((b_ini - min_start) / total_minutos_escala) * 100.0))
+            left_pct = max(0.0, min(100.0, ((b_ini - min_start_scale) / total_minutos_escala) * 100.0))
             width_pct = max(0.4, min(100.0 - left_pct, (dur / total_minutos_escala) * 100.0))
 
             es_omision_total = b.get('tipo') == 'OMISION_TOTAL'
@@ -266,45 +268,26 @@ def calcular_timeline_visual(registros, baches, fecha, hora_inicio_taller=HORA_I
 
     bloques.sort(key=lambda b: (b.get('left_pct', 0), b.get('hora_inicio', '')))
 
-    # 5. Generar escala dinámica de ticks que refleje las horas reales del operario
+    # 5. Generar escala de tiempo con marcas fijas exactamente cada una hora
     ticks = []
-    # Primer tick
-    ticks.append({
-        'hora': _format_mins(min_start),
-        'left_pct': 0.0,
-        'tipo': 'extremo',
-    })
-
-    # Ticks intermedios en cada hora en punto (07:00, 08:00, etc.)
-    h_ini = (min_start // 60) + 1
-    h_fin = max_end // 60
-    for h in range(h_ini, h_fin + 1):
-        m_h = h * 60
-        if m_h >= max_end:
-            break
-        pct = ((m_h - min_start) / total_minutos_escala) * 100.0
-        # Evitar superposición visual si está pegado a los extremos (< 5% o > 95%)
-        if 5.0 <= pct <= 95.0:
-            ticks.append({
-                'hora': f"{h:02d}:00",
-                'left_pct': round(pct, 2),
-                'tipo': 'hora',
-            })
-
-    # Último tick
-    ticks.append({
-        'hora': _format_mins(max_end),
-        'left_pct': 100.0,
-        'tipo': 'extremo',
-    })
+    num_intervalos = max(max_h - min_h, 1)
+    for i, h in enumerate(range(min_h, max_h + 1)):
+        pct = (i / num_intervalos) * 100.0
+        ticks.append({
+            'hora': f"{h:02d}:00",
+            'left_pct': round(pct, 2),
+            'es_primero': (i == 0),
+            'es_ultimo': (i == num_intervalos),
+        })
 
     timeline_escala = {
-        'inicio_str': _format_mins(min_start),
-        'fin_str': _format_mins(max_end),
-        'min_start': min_start,
-        'max_end': max_end,
+        'inicio_str': f"{min_h:02d}:00",
+        'fin_str': f"{max_h:02d}:00",
+        'min_start': min_start_scale,
+        'max_end': max_end_scale,
         'total_minutos': total_minutos_escala,
         'ticks': ticks,
+        'intervalos': num_intervalos,
     }
 
     return bloques, timeline_escala
