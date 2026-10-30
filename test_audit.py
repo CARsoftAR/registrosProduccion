@@ -311,7 +311,7 @@ def test_full_flow():
     assert "hora_fin_taller" in html_param
     print("   [OK] Módulo de Configuración de Planta renderizado y accesible con total normalidad!")
 
-    # Verificar guardado de parámetros
+    # Verificar guardado de parámetros con punto y coma decimal tolerante
     req_save_param = rf.post('/parametros/', {
         'jornada_teorica_horas': '8.5',
         'tolerancia_bache_minutos': '15',
@@ -320,7 +320,21 @@ def test_full_flow():
     })
     resp_save_param = parametros_taller_view(req_save_param)
     assert resp_save_param.status_code == 302, f"Se esperaba redirección al guardar parámetros, obtenido: {resp_save_param.status_code}"
-    print("   [OK] Guardado de parámetros generales verificado con éxito!")
+
+    # Probar envío con coma decimal (8,5)
+    req_save_comma = rf.post('/parametros/', {
+        'jornada_teorica_horas': '8,5',
+        'tolerancia_bache_minutos': '15',
+        'hora_inicio_taller': '07:00',
+        'hora_fin_taller': '16:00',
+    })
+    resp_save_comma = parametros_taller_view(req_save_comma)
+    assert resp_save_comma.status_code == 302, f"Se esperaba redirección con coma decimal, obtenido: {resp_save_comma.status_code}"
+    
+    from control_produccion.models import ParametroTaller
+    param_check = ParametroTaller.get_solo()
+    assert param_check.jornada_teorica_horas == 8.5, f"Esperado 8.5 float en BD, obtenido {param_check.jornada_teorica_horas}"
+    print("   [OK] Guardado y parseo tolerante con coma decimal (8,5 -> 8.5) verificado en BD local con éxito!")
 
     # Verificar constantes fijas de planta en el backend (8,5 hs = 510 min, 07:00 a 16:00)
     from control_produccion.constants import (

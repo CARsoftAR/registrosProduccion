@@ -726,8 +726,10 @@ def parametros_taller_view(request):
 
     if request.method == 'POST':
         try:
-            jornada = float(request.POST.get('jornada_teorica_horas', 8.5))
-            tolerancia = int(request.POST.get('tolerancia_bache_minutos', 15))
+            raw_jornada = str(request.POST.get('jornada_teorica_horas', '8.5')).strip().replace(',', '.')
+            jornada = float(raw_jornada) if raw_jornada else 8.5
+            raw_tolerancia = str(request.POST.get('tolerancia_bache_minutos', '15')).strip()
+            tolerancia = int(raw_tolerancia) if raw_tolerancia else 15
             h_ini = request.POST.get('hora_inicio_taller', '07:00').strip()
             h_fin = request.POST.get('hora_fin_taller', '16:00').strip()
 
